@@ -1,2 +1,2 @@
 # chapp
-A placeholder repo for something interesting :)
+A placeholder repo for something really interesting :)
