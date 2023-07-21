@@ -27,10 +27,10 @@ jobs:
         id: fetch-content
         run: |
           RESULT=$(curl -s ${{ env.LISTINGS_URL}} | grep -i -B 2 ${{ env.COUNTRY }})
-          echo ("content=" + $RESULT) >> $GITHUB_OUTPUT
+          echo "content=$RESULT" >> $GITHUB_OUTPUT
 
           LENGTH=$(echo "$RESULT" | wc -l)
-          echo ("contentLength=" + $LENGTH) >> $GITHUB_OUTPUT
+          echo "contentLength=$LENGTH" >> $GITHUB_OUTPUT
 
       - name: Notify
         if: ${{ steps.fetch-content.outcome.contentLength > 0 }}
