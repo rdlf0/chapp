@@ -30,15 +30,8 @@ jobs:
         run: |
           RESULT=$(curl -s ${{ env.LISTINGS_URL}} | grep -i -B 2 ${{ env.COUNTRY }})
 
-          echo "EXTRACTED_CONTENT<<EOF" >> $GITHUB_ENV
-          echo "$RESULT" >> $GITHUB_ENV
-          echo "EOF" >> $GITHUB_ENV
-
-          LENGTH=$(echo "$RESULT" | wc -l)
-          echo "contentLength=$LENGTH" >> $GITHUB_OUTPUT
-
       - name: Notify
-        if: ${{ steps.fetch-content.outputs.contentLength > 0 }}
+        if: ${{ steps.fetch-content.outputs.contentLength > 1 }}
         uses: dawidd6/action-send-mail@v3
         with:
           connection_url: ${{ secrets.SMTP_CONNECTION_URL }}
