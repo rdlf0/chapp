@@ -1,6 +1,7 @@
 ---
 
 name: GitHub job listings check
+run-name: 'GitHub job listings check for ${{ github.event.inputs.country }}'
 
 on:
   workflow_dispatch:
@@ -27,6 +28,8 @@ jobs:
         id: fetch-content
         run: |
           RESULT=$(curl -s ${{ env.LISTINGS_URL}} | grep -i -B 2 ${{ env.COUNTRY }})
+          RESULT="${RESULT//$'\n'/'%0A'}"
+          RESULT="${RESULT//$'\r'/'%0D'}"
           echo "content=$RESULT" >> $GITHUB_OUTPUT
 
           LENGTH=$(echo "$RESULT" | wc -l)
