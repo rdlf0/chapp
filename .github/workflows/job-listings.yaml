@@ -1,7 +1,7 @@
 ---
 
 name: GitHub job listings check
-run-name: 'GitHub job listings check for ${{ github.event.inputs.country }}'
+run-name: "GitHub job listings check for ${{ inputs.country || 'Switzerland' }}"
 
 on:
   workflow_dispatch:
@@ -12,20 +12,21 @@ on:
         default: 'Switzerland'
         type: string
 
-  # schedule:
-    # - cron: '*/5 * * * *'
+  schedule:
+    - cron: '*/15 * * * *'
 
 jobs:
   check_listings:
     name: Check Listings
     runs-on: ubuntu-22.04
     env:
-      LISTINGS_URL: 'https://boards.greenhouse.io/github'
-      COUNTRY: ${{ github.event.inputs.country || 'Switzerland' }}
+      COUNTRY: ${{ inputs.country || 'Switzerland' }}
 
     steps:
       - name: Fetch content
         id: fetch-content
+        env:
+          LISTINGS_URL: 'https://boards.greenhouse.io/github'
         run: |
           RESULT=$(curl -s ${{ env.LISTINGS_URL}} | grep -i -B 2 ${{ env.COUNTRY }})
 
