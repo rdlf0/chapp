@@ -1,0 +1,47 @@
+---
+
+name: GitHub job listings check
+
+on:
+  workflow_dispatch:
+    inputs:
+      country:
+        description: 'For which country to look for listings'
+        required: true
+        default: 'Switzerland'
+        type: string
+
+  # schedule:
+    # - cron: '*/5 * * * *'
+
+jobs:
+  check_listings:
+    name: Check Listings
+    runs-on: ubuntu-22.04
+    env:
+      LISTINGS_URL: 'https://boards.greenhouse.io/github'
+      COUNTRY: ${{ github.event.inputs.country || 'Switzerland' }}
+
+    steps:
+      - name: Fetch content
+        id: fetch-content
+        run: |
+          RESULT=$(curl -s ${{ env.LISTINGS_URL}} | grep -i -B 2 ${{ env.COUNTRY }})
+          echo ("content=" + $RESULT) >> $GITHUB_OUTPUT
+
+          LENGTH=$(echo "$RESULT" | wc -l)
+          echo ("contentLength=" + $LENGTH) >> $GITHUB_OUTPUT
+
+      - name: Notify
+        if: ${{ steps.fetch-content.outcome.contentLength > 0 }}
+        uses: dawidd6/action-send-mail@v3
+        with:
+          connection_url: ${{ secrets.SMTP_CONNECTION_URL }}
+          server_address: "smtp.gmail.com"
+          server_port: 465
+          username: ${{ secrets.EMAIL_USERNAME }}
+          password: ${{ secrets.EMAIL_PASSWORD }}
+          subject: "Found job listings for ${{ env.COUNTRY }}"
+          to: ${{ vars.EMAIL_TO }}
+          from: "Radoslav Stoyanov"
+          body: ${{ steps.fetch-content.outputs.content }}
