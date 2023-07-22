@@ -44,7 +44,7 @@ jobs:
           fi
 
       - name: Notify
-        if: ${{ steps.fetch-content.outputs.found == true }}
+        if: ${{ steps.fetch-content.outputs.found == 'true' }}
         uses: dawidd6/action-send-mail@v3
         with:
           connection_url: ${{ secrets.SMTP_CONNECTION_URL }}
