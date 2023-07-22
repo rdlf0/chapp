@@ -29,9 +29,9 @@ jobs:
           LISTINGS_URL: 'https://boards.greenhouse.io/github'
         shell: bash {0}
         run: |
-          RESULT=$(curl -s https://boards.greenhouse.io/github | grep -i -B 2 Swtizerland
+          RESULT=$(curl -s ${{ env.LISTINGS_URL}} | grep -i -B 2 ${{ env.COUNTRY }})
 
-          if [ "$?" = 0 ]; then
+          if [ $? -eq 0 ]; then
             echo "found=true" >> $GITHUB_OUTPUT
 
             echo "EXTRACTED_CONTENT<<EOF" >> $GITHUB_ENV
