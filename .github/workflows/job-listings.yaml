@@ -27,11 +27,24 @@ jobs:
         id: fetch-content
         env:
           LISTINGS_URL: 'https://boards.greenhouse.io/github'
+        shell: bash {0}
         run: |
-          RESULT=$(curl -s ${{ env.LISTINGS_URL}} | grep -i -B 2 ${{ env.COUNTRY }})
+          RESULT=$(curl -s ${{ env.LISTINGS_URL}} | grep -i -B 2 "${{ env.COUNTRY }}")
+
+          if [ $? -ne 0 ]; then
+            exit 0
+          fi
+        
+          echo "found=true" >> $GITHUB_OUTPUT
+
+          echo "EXTRACTED_CONTENT<<EOF" >> $GITHUB_ENV
+          echo "$RESULT" >> $GITHUB_ENV
+          echo "EOF" >> $GITHUB_ENV
+
+          echo "$RESULT" >> $GITHUB_STEP_SUMMARY
 
       - name: Notify
-        if: ${{ steps.fetch-content.outputs.contentLength > 1 }}
+        if: ${{ steps.fetch-content.outputs.found == 'true' }}
         uses: dawidd6/action-send-mail@v3
         with:
           connection_url: ${{ secrets.SMTP_CONNECTION_URL }}
