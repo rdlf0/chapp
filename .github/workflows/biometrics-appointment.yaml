@@ -1,0 +1,75 @@
+---
+
+name: Zurich - Biometrics appointment schedule check
+
+on:
+  workflow_dispatch:
+    inputs:
+      token:
+        description: 'Token'
+        required: true
+        default: 'R'
+        type: choice
+        options:
+          - R
+          - G
+      after:
+        description: 'Date after'
+        required: true
+        default: '2023-10-21'
+        type: string
+
+jobs:
+  check_schedule:
+    name: Check schedule
+    runs-on: ubuntu-22.04
+
+    steps:
+      - name: Log in
+        id: login
+        env:
+          URL_LOGIN: https://www.zh.ch/proxy/migek/login
+        run: |
+          if [[ ${{ inputs.token }} = 'R' ]]; then
+            TOKEN_SECRET=${{ secrets.BIOMETRICS_TOKEN_R }}
+          else
+            TOKEN_SECRET=${{ secrets.BIOMETRICS_TOKEN_G }}
+          fi
+
+          RESPONSE=$(curl -X POST -H "Content-Type: application/json" -d "{\"token\": \"$TOKEN_SECRET\"}" "${{ env.URL_LOGIN }}")
+
+          TOKEN=$(echo $RESPONSE | js .token)
+          echo "token=$TOKEN" >> $GITHUB_OUTPUT
+
+      - name: Check slots
+        id: check-slots
+        env:
+          URL_SLOTS: "https://www.zh.ch/proxy/migek/api/v1/timeslots/?days=7&notBefore=${{ inputs.after }}"
+        run: |
+          RESPONSE=$(curl -H "Authorization: Bearer ${{ steps.login.outputs.token }}" "${{ env.URL_SLOTS }}")
+          SLOTS=$(echo $RESPONSE | jq '[.timeSlots[] | select(.capacity > 1)]')
+          NUM_SLOTS=$(echo $SLOTS | length')
+
+          if [[ "$NUM_SLOTS" = "0" ]]; then
+            exit 0
+          fi
+
+          $SLOTS_LIST=$(echo $SLOTS | jq '.[]')
+
+          echo "found=true" >> $GITHUB_OUTPUT
+
+          echo "EXTRACTED_CONTENT<<EOF" >> $GITHUB_ENV
+          echo "$SLOTS_LIST" >> $GITHUB_ENV
+          echo "EOF" >> $GITHUB_ENV
+
+          echo "$SLOTS_LIST" >> $GITHUB_STEP_SUMMARY
+
+      - name: Notify
+        if: ${{ steps.check-slots.outputs.found == 'true' }}
+        uses: dawidd6/action-send-mail@v3
+        with:
+          connection_url: ${{ secrets.SMTP_CONNECTION_URL }}
+          subject: "Found biometric appointment slots!"
+          to: ${{ vars.EMAIL_TO }}
+          from: "Radoslav Stoyanov"
+          body: ${{ env.EXTRACTED_CONTENT }}
