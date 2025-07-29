@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chapp - E2E Chat</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <div class="chat-section">
+            <div class="header">
+                <h1>Chapp</h1>
+            </div>
+            <div class="messages" id="messages"></div>
+            <div class="input-section">
+                <input type="text" id="messageInput" placeholder="Type your message..." disabled>
+                <button id="sendButton" disabled>Send</button>
+            </div>
+        </div>
+        <div class="clients-section">
+            <div class="clients-header">Connected Clients</div>
+            <div class="connection-status" id="connectionStatus">Connecting...</div>
+            <div id="clientsList"></div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html> 
