@@ -1,4 +1,4 @@
-module websocket
+module chapp
 
 go 1.21
 

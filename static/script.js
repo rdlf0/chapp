@@ -1,6 +1,15 @@
 let ws;
 let username;
 let myKeyPair = null;
+
+// Update the page title to show current user
+function updateTitle() {
+    if (username) {
+        document.title = `Chapp - ${username}`;
+    } else {
+        document.title = 'Chapp - E2E Chat';
+    }
+}
 let otherClients = new Map(); // clientID -> publicKey
 let isKeyGenerated = false;
 let hasSharedKey = false; // Prevent infinite loop
@@ -329,6 +338,9 @@ function connect() {
     if (username === "Anonymous") {
         username = username + "_" + Date.now();
     }
+    
+    // Update the title with the username
+    updateTitle();
     
     // Generate keys first
     generateKeyPair().then(() => {
