@@ -30,12 +30,18 @@ Server: Relay Encrypted Messages (Cannot Decrypt)
 - ✅ **Public key exchange** between clients
 - ✅ **True end-to-end** encryption
 - ✅ **Zero-knowledge server** (server is untrusted)
+- ✅ **Shared types** for consistency between client and server
+- ✅ **Unified client interfaces** with common base types
 
 ## 🚀 **How to Run**
 
-### **1. Start Chapp Server:**
+### **1. Build and Start Chapp Server:**
 ```bash
-go run server.go
+# Build the server
+go build -o bin/server cmd/server/server.go
+
+# Run the server
+./bin/server
 ```
 
 ### **2. Connect Multiple Clients:**
@@ -47,7 +53,11 @@ go run server.go
 
 **Command Line:**
 ```bash
-go run client.go [username]
+# Build the client
+go build -o bin/client cmd/client/client.go
+
+# Run the client
+./bin/client [username]
 ```
 
 ### **CLI Slash Commands:**
@@ -107,15 +117,27 @@ Alice: Hello Bob! (decrypted with Bob's private key)
 
 ```
 chapp/
-├── server.go          # Chapp WebSocket server
-├── client.go          # Chapp command-line client
+├── cmd/
+│   ├── server/
+│   │   ├── server.go          # Chapp WebSocket server
+│   │   ├── server_test.go     # Server tests
+│   │   └── web_test.go        # Web interface tests
+│   └── client/
+│       ├── client.go          # Chapp command-line client
+│       └── client_test.go     # Client tests
+├── pkg/
+│   └── types/
+│       ├── message.go         # Shared Message struct
+│       ├── constants.go       # Message type constants
+│       └── client.go          # Shared client interfaces
 ├── static/
-│   ├── index.html     # Web chat interface
-│   ├── styles.css     # Web client styles
-│   └── script.js      # Web client JavaScript
-├── README.md          # This documentation
-├── go.mod             # Go module dependencies
-└── go.sum             # Dependency checksums
+│   ├── index.html             # Web chat interface
+│   ├── styles.css             # Web client styles
+│   └── script.js              # Web client JavaScript
+├── bin/                       # Build output directory
+├── README.md                  # This documentation
+├── go.mod                     # Go module dependencies
+└── go.sum                     # Dependency checksums
 ```
 
 ## 🔑 **Cryptographic Implementation**
@@ -173,13 +195,34 @@ const decrypted = await crypto.subtle.decrypt(
 
 ## 🔍 **Message Types**
 
+### **Shared Message Structure:**
+```go
+type Message struct {
+    Type      string `json:"type"`
+    Content   string `json:"content"`
+    Sender    string `json:"sender"`
+    Recipient string `json:"recipient,omitempty"`
+    Timestamp int64  `json:"timestamp"`
+}
+```
+
+### **Message Type Constants:**
+```go
+const (
+    MessageTypeSystem         = "system"
+    MessageTypeEncrypted      = "encrypted_message"
+    MessageTypePublicKeyShare = "public_key_share"
+    MessageTypeRequestKeys    = "request_keys"
+    MessageTypeMessage        = "message"
+)
+```
+
 ### **1. Public Key Share:**
 ```json
 {
   "type": "public_key_share",
   "content": "My public key",
   "sender": "Alice",
-  "publicKey": "base64_encoded_public_key",
   "timestamp": 1234567890
 }
 ```
@@ -190,6 +233,7 @@ const decrypted = await crypto.subtle.decrypt(
   "type": "encrypted_message",
   "content": "base64_encrypted_content",
   "sender": "Alice",
+  "recipient": "Bob",
   "timestamp": 1234567890
 }
 ```
@@ -210,7 +254,8 @@ const decrypted = await crypto.subtle.decrypt(
 
 1. **Start the server:**
    ```bash
-   go run true_e2e_server.go
+   go build -o bin/server cmd/server/server.go
+   ./bin/server
    ```
 
 2. **Open multiple browser tabs** to `http://localhost:8080`
@@ -224,6 +269,27 @@ const decrypted = await crypto.subtle.decrypt(
 
 5. **Verify** that server logs show `[ENCRYPTED]` instead of actual message content
 
+## 🧪 **Testing**
+
+### **Run All Tests:**
+```bash
+# Run all tests
+go test ./...
+
+# Run specific test suites
+go test ./cmd/server
+go test ./cmd/client
+```
+
+### **Test Coverage:**
+```bash
+# Generate coverage report
+go test -coverprofile=coverage.out ./...
+
+# View coverage in browser
+go tool cover -html=coverage.out
+```
+
 ## 🚨 **Security Considerations**
 
 ### **Current Implementation:**
@@ -231,6 +297,8 @@ const decrypted = await crypto.subtle.decrypt(
 - ✅ **Server cannot decrypt messages**
 - ✅ **Public key exchange**
 - ✅ **Web Crypto API** for secure operations
+- ✅ **Shared types** for consistency
+- ✅ **Unified client interfaces**
 
 ### **Production Enhancements:**
 - 🔄 **Perfect Forward Secrecy** (key rotation)
@@ -252,22 +320,6 @@ const decrypted = await crypto.subtle.decrypt(
 - **Firefox**: Full support
 - **Safari**: Full support
 - **Mobile browsers**: Full support
-
-## 🧪 **Testing**
-
-### **Test Chapp:**
-```bash
-# Start server
-go run server.go
-
-# Open multiple browser tabs
-# Send messages and check server logs
-```
-
-### **Verify Security:**
-- Server logs show `[ENCRYPTED]` instead of message content
-- Messages are decrypted only on client side
-- Server has no access to private keys
 
 ## 📚 **References**
 
