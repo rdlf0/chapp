@@ -76,26 +76,87 @@ async function encryptMessage(message, recipientPublicKey) {
             ["encrypt"]
         );
         
-        // Encrypt the message
-        const messageBytes = new TextEncoder().encode(message);
-        const encrypted = await crypto.subtle.encrypt(
-            {
-                name: "RSA-OAEP"
-            },
-            publicKey,
-            messageBytes
-        );
+        // RSA-2048 can encrypt up to ~190 bytes, so we need to chunk longer messages
+        const maxChunkSize = 180; // Conservative size to account for padding
         
-        return btoa(String.fromCharCode(...new Uint8Array(encrypted)));
+        if (message.length <= maxChunkSize) {
+            // Message is short enough to encrypt directly
+            const messageBytes = new TextEncoder().encode(message);
+            const encrypted = await crypto.subtle.encrypt(
+                {
+                    name: "RSA-OAEP"
+                },
+                publicKey,
+                messageBytes
+            );
+            
+            return btoa(String.fromCharCode(...new Uint8Array(encrypted)));
+        }
+        
+        // Message is too long, split into chunks
+        const chunks = splitMessageIntoChunks(message, maxChunkSize);
+        const encryptedChunks = [];
+        
+        for (let i = 0; i < chunks.length; i++) {
+            const chunk = chunks[i];
+            const messageBytes = new TextEncoder().encode(chunk);
+            const encrypted = await crypto.subtle.encrypt(
+                {
+                    name: "RSA-OAEP"
+                },
+                publicKey,
+                messageBytes
+            );
+            
+            encryptedChunks.push(btoa(String.fromCharCode(...new Uint8Array(encrypted))));
+        }
+        
+        // Join encrypted chunks with a separator
+        return encryptedChunks.join('|');
     } catch (error) {
         console.error('Failed to encrypt message:', error);
         return null;
     }
 }
 
+// Helper function to split message into chunks
+function splitMessageIntoChunks(message, chunkSize) {
+    const chunks = [];
+    for (let i = 0; i < message.length; i += chunkSize) {
+        const end = Math.min(i + chunkSize, message.length);
+        chunks.push(message.substring(i, end));
+    }
+    return chunks;
+}
+
 // Decrypt message with our private key
 async function decryptMessage(encryptedMessage) {
     try {
+        // Check if this is a chunked message (contains separator)
+        if (encryptedMessage.includes('|')) {
+            // Handle chunked message
+            const chunks = encryptedMessage.split('|');
+            const decryptedChunks = [];
+            
+            for (let i = 0; i < chunks.length; i++) {
+                const chunk = chunks[i];
+                const encryptedBytes = Uint8Array.from(atob(chunk), c => c.charCodeAt(0));
+                
+                const decrypted = await crypto.subtle.decrypt(
+                    {
+                        name: "RSA-OAEP"
+                    },
+                    myKeyPair.privateKey,
+                    encryptedBytes
+                );
+                
+                decryptedChunks.push(new TextDecoder().decode(decrypted));
+            }
+            
+            return decryptedChunks.join('');
+        }
+        
+        // Handle single chunk message (original behavior)
         const encryptedBytes = Uint8Array.from(atob(encryptedMessage), c => c.charCodeAt(0));
         
         const decrypted = await crypto.subtle.decrypt(
