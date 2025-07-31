@@ -4,14 +4,22 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Chapp - Login</title>
+    <link rel="stylesheet" href="css/styles.css">
     <link rel="stylesheet" href="css/login.css">
 </head>
 <body>
     <div class="login-container">
-        <div class="logo">Chapp</div>
-        <div class="subtitle">End-to-End Encrypted Chat</div>
+        <div class="login-header">
+            <div class="chapp-logo logo-dark">
+                <div class="logo-icon"></div>
+                <span class="logo-text">Chapp</span>
+            </div>
+            <p>End-to-End Encrypted Chat</p>
+        </div>
         
-        <form id="loginForm" method="POST" action="/login">
+        <form id="loginForm" method="POST" action="/login" class="login-form">
+            <div class="error-message" id="error">Please enter a valid username</div>
+            
             <div class="form-group">
                 <label for="username">Username</label>
                 <input 
@@ -23,15 +31,13 @@
                     autocomplete="off"
                     autofocus
                 >
-                <div class="error" id="error">Please enter a valid username</div>
             </div>
             
-            <button type="submit" class="login-btn">Join Chat</button>
+            <button type="submit" class="submit-btn">Join Chat</button>
         </form>
 
-        <div class="security-note">
-            <strong>🔐 Secure by Design:</strong><br>
-            Your messages are encrypted on your device and cannot be read by the server.
+        <div class="security-badge">
+            🔐 Secure by Design: Your messages are encrypted on your device
         </div>
     </div>
 

@@ -10,8 +10,17 @@
     <div class="container">
         <div class="chat-section">
             <div class="header">
-                <h1>Chapp</h1>
-                <button id="logoutBtn" class="logout-btn">Logout</button>
+                <div class="chapp-logo">
+                    <div class="logo-icon"></div>
+                    <span class="logo-text">Chapp</span>
+                </div>
+                <div class="header-controls">
+                    <div class="connection-indicator" id="connectionStatus">
+                        <span class="connection-icon">🔗</span>
+                        <span class="connection-text">Connecting...</span>
+                    </div>
+                    <button id="logoutBtn" class="logout-btn">Logout</button>
+                </div>
             </div>
             <div class="messages" id="messages"></div>
             <div class="input-section">
@@ -21,7 +30,6 @@
         </div>
         <div class="clients-section">
             <div class="clients-header">Connected Clients</div>
-            <div class="connection-status" id="connectionStatus">Connecting...</div>
             <div id="clientsList"></div>
         </div>
     </div>

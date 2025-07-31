@@ -1,0 +1,127 @@
+/* Chapp Logo - Modern CSS Design */
+
+.chapp-logo {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-weight: 800;
+    font-size: 1.5rem;
+    color: white;
+    text-decoration: none;
+}
+
+.logo-icon {
+    position: relative;
+    width: 32px;
+    height: 32px;
+    background: linear-gradient(135deg, #6366f1, #06b6d4);
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 2px 8px rgba(99, 102, 241, 0.3);
+    overflow: hidden;
+}
+
+.logo-icon::before {
+    content: '🔐';
+    font-size: 16px;
+    filter: brightness(1.2);
+}
+
+
+
+.logo-text {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: linear-gradient(135deg, #ffffff, #f1f5f9);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    letter-spacing: -0.5px;
+}
+
+/* Alternative Logo Variants */
+
+/* Minimal Logo */
+.logo-minimal {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.75rem;
+    font-weight: 700;
+    font-size: 1.25rem;
+    color: white;
+}
+
+.logo-minimal .logo-icon {
+    width: 24px;
+    height: 24px;
+    border-radius: 6px;
+}
+
+.logo-minimal .logo-icon::before {
+    font-size: 12px;
+}
+
+/* Compact Logo */
+.logo-compact {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-weight: 600;
+    font-size: 1rem;
+    color: white;
+}
+
+.logo-compact .logo-icon {
+    width: 20px;
+    height: 20px;
+    border-radius: 4px;
+}
+
+.logo-compact .logo-icon::before {
+    font-size: 10px;
+}
+
+/* Logo for Dark Backgrounds */
+.logo-dark {
+    color: var(--text-primary);
+}
+
+.logo-dark .logo-text {
+    background: linear-gradient(135deg, var(--primary-color), var(--accent-color));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+/* Animated Logo */
+.logo-animated .logo-icon {
+    animation: logoPulse 2s ease-in-out infinite;
+}
+
+@keyframes logoPulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+}
+
+/* Logo with Badge */
+.logo-with-badge {
+    position: relative;
+}
+
+.logo-badge {
+    position: absolute;
+    top: -4px;
+    right: -4px;
+    width: 12px;
+    height: 12px;
+    background: #10b981;
+    border-radius: 50%;
+    border: 2px solid white;
+    animation: badgePulse 2s ease-in-out infinite;
+}
+
+@keyframes badgePulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.7; }
+} 

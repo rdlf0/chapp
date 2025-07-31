@@ -221,7 +221,8 @@ async function displayMessage(message) {
         second: '2-digit' 
     });
     
-    let displayText = `[${timeString}] ${message.sender}: `;
+    let displayText = '';
+    let messageContent = '';
     
     if (message.type === MESSAGE_TYPES.ENCRYPTED) {
         // Only try to decrypt messages that were encrypted for us
@@ -232,7 +233,7 @@ async function displayMessage(message) {
         // Only try to decrypt messages from others (not from ourselves)
         if (message.sender !== username) {
             const decryptedContent = await decryptMessage(message.content);
-            displayText += decryptedContent;
+            messageContent = decryptedContent;
         } else {
             // Skip our own encrypted messages (they were meant for others)
             return;
@@ -260,7 +261,7 @@ async function displayMessage(message) {
         return;
     } else if (message.type === MESSAGE_TYPES.LOCAL) {
         // Display local messages (our own messages for local display)
-        displayText += message.content;
+        messageContent = message.content;
     } else if (message.type === MESSAGE_TYPES.REQUEST_KEYS) {
         // Another client is requesting our public key
         if (message.sender !== username && isKeyGenerated) {
@@ -276,7 +277,7 @@ async function displayMessage(message) {
         } else if (content.match(/^User (.+) left the chat/)) {
             content = content.replace(/^User /, '');
         }
-        displayText = `[${timeString}] ${content}`; // Add timestamp to system messages
+        messageContent = content;
         
         // Handle user join/leave events
         if (message.content.includes('joined the chat') && isKeyGenerated) {
@@ -297,11 +298,31 @@ async function displayMessage(message) {
             }
         }
     } else {
-        displayText += message.content;
+        messageContent = message.content;
     }
     
     messageDiv.className = className;
-    messageDiv.textContent = displayText;
+    
+    if (message.type === MESSAGE_TYPES.SYSTEM) {
+        // System messages with simple structure
+        messageDiv.innerHTML = `
+            <div class="message-content">
+                <span class="message-timestamp">${timeString}</span>
+                <span class="message-text">${messageContent}</span>
+            </div>
+        `;
+    } else {
+        // Regular messages with structured content
+        messageDiv.innerHTML = `
+            <div class="message-header">
+                <span class="message-username">${message.sender}</span>
+                <span class="message-timestamp">${timeString}</span>
+            </div>
+            <div class="message-content">
+                <span class="message-text">${messageContent}</span>
+            </div>
+        `;
+    }
     
     messagesDiv.appendChild(messageDiv);
     messagesDiv.scrollTop = messagesDiv.scrollHeight;
@@ -363,8 +384,9 @@ function connect() {
         ws = new WebSocket(wsUrl);
         
         ws.onopen = function() {
-            document.getElementById('connectionStatus').textContent = 'Connected';
-            document.getElementById('connectionStatus').className = 'connection-status status-connected';
+            const connectionStatus = document.getElementById('connectionStatus');
+            connectionStatus.querySelector('.connection-text').textContent = 'Connected';
+            connectionStatus.className = 'connection-indicator status-connected';
             document.getElementById('messageInput').disabled = false;
             document.getElementById('sendButton').disabled = false;
             document.getElementById('messageInput').focus();
@@ -403,8 +425,9 @@ function connect() {
         };
         
         ws.onclose = function() {
-            document.getElementById('connectionStatus').textContent = 'Disconnected';
-            document.getElementById('connectionStatus').className = 'connection-status status-disconnected';
+            const connectionStatus = document.getElementById('connectionStatus');
+            connectionStatus.querySelector('.connection-text').textContent = 'Disconnected';
+            connectionStatus.className = 'connection-indicator status-disconnected';
             document.getElementById('messageInput').disabled = true;
             document.getElementById('sendButton').disabled = true;
         };
