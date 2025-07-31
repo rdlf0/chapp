@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chapp - Login</title>
+    <link rel="stylesheet" href="css/login.css">
+</head>
+<body>
+    <div class="login-container">
+        <div class="logo">Chapp</div>
+        <div class="subtitle">End-to-End Encrypted Chat</div>
+        
+        <form id="loginForm" method="POST" action="/login">
+            <div class="form-group">
+                <label for="username">Username</label>
+                <input 
+                    type="text" 
+                    id="username" 
+                    name="username" 
+                    placeholder="Enter your username"
+                    required
+                    autocomplete="off"
+                    autofocus
+                >
+                <div class="error" id="error">Please enter a valid username</div>
+            </div>
+            
+            <button type="submit" class="login-btn">Join Chat</button>
+        </form>
+
+        <div class="security-note">
+            <strong>🔐 Secure by Design:</strong><br>
+            Your messages are encrypted on your device and cannot be read by the server.
+        </div>
+    </div>
+
+    <script src="js/login.js"></script>
+</body>
+</html> 

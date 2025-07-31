@@ -6,8 +6,12 @@ const (
 	MessageTypeEncrypted      = "encrypted_message"
 	MessageTypePublicKeyShare = "public_key_share"
 	MessageTypeRequestKeys    = "request_keys"
-	MessageTypeMessage        = "message"
+	MessageTypeUserInfo       = "user_info"
+	MessageTypeKeyExchange    = "key_exchange"
 )
+
+// Session cookie name
+const SessionCookieName = "chapp_session"
 
 // System sender name
 const SystemSender = "System"

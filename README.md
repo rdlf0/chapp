@@ -13,6 +13,8 @@ A **genuine end-to-end encrypted** chat application where the server **cannot re
 | **Message Reading** | Server can read messages | Server cannot read messages |
 | **Trust Model** | Server is trusted | Server is untrusted |
 | **Security** | Not truly secure | Actually secure |
+| **Authentication** | URL-based username | Session-based with cookies |
+| **Message Types** | Mixed encrypted/unencrypted | Strictly encrypted only |
 
 ## 🏗️ **Architecture**
 
@@ -23,6 +25,12 @@ Client B: Receive Encrypted → Decrypt with Private Key → Read Message
 Server: Relay Encrypted Messages (Cannot Decrypt)
 ```
 
+### **Authentication Flow:**
+```
+Web Client: Login Form → Session Cookie → WebSocket Connection
+CLI Client: Username Parameter → Direct WebSocket Connection
+```
+
 ### **Key Features:**
 - ✅ **Client-side key generation** (RSA-2048)
 - ✅ **Client-side encryption** (Web Crypto API)
@@ -30,8 +38,11 @@ Server: Relay Encrypted Messages (Cannot Decrypt)
 - ✅ **Public key exchange** between clients
 - ✅ **True end-to-end** encryption
 - ✅ **Zero-knowledge server** (server is untrusted)
+- ✅ **Session-based authentication** for web clients
+- ✅ **URL parameter authentication** for CLI clients
 - ✅ **Shared types** for consistency between client and server
 - ✅ **Unified client interfaces** with common base types
+- ✅ **Strict E2E enforcement** - no unencrypted messages
 
 ## 🚀 **How to Run**
 
@@ -48,6 +59,7 @@ go build -o bin/server cmd/server/server.go
 
 **Web Interface:**
 - Open `http://localhost:8080` in multiple browser tabs
+- Login with your username on the login page
 - Each client generates their own keys
 - Public keys are automatically shared
 
@@ -71,6 +83,13 @@ The command-line client supports the following slash commands:
 
 **Example CLI Usage:**
 ```bash
+=== CHAPP - E2E ENCRYPTED CHAT ===
+Connected as: Alice
+Your Public Key:
+  MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA...
+Type your message or /h for help
+==================================
+
 > /h
 === Available Commands ===
 • /h, /help     - Show this help message
@@ -132,8 +151,13 @@ chapp/
 │       └── client.go          # Shared client interfaces
 ├── static/
 │   ├── index.html             # Web chat interface
-│   ├── styles.css             # Web client styles
-│   └── script.js              # Web client JavaScript
+│   ├── login.html             # Login page
+│   ├── css/
+│   │   ├── styles.css         # Web client styles
+│   │   └── login.css          # Login page styles
+│   └── js/
+│       ├── script.js          # Web client JavaScript
+│       └── login.js           # Login page JavaScript
 ├── bin/                       # Build output directory
 ├── README.md                  # This documentation
 ├── go.mod                     # Go module dependencies
@@ -185,6 +209,11 @@ const decrypted = await crypto.subtle.decrypt(
 - Server has no access to private keys
 - Compromised server cannot read messages
 
+### **Authentication Model:**
+- **Web Clients**: Session-based authentication with HTTP-only cookies
+- **CLI Clients**: URL parameter authentication for backward compatibility
+- **Session Management**: Server-side session storage with automatic cleanup
+
 ### **Message Flow:**
 1. **Client A** generates RSA key pair
 2. **Client A** shares public key with other clients
@@ -213,7 +242,8 @@ const (
     MessageTypeEncrypted      = "encrypted_message"
     MessageTypePublicKeyShare = "public_key_share"
     MessageTypeRequestKeys    = "request_keys"
-    MessageTypeMessage        = "message"
+    MessageTypeUserInfo       = "user_info"
+    MessageTypeKeyExchange    = "key_exchange"
 )
 ```
 
@@ -248,6 +278,16 @@ const (
 }
 ```
 
+### **4. User Info Message:**
+```json
+{
+  "type": "user_info",
+  "content": "Alice",
+  "sender": "System",
+  "timestamp": 1234567890
+}
+```
+
 ## 🎯 **Security Verification**
 
 ### **How to Verify True E2E:**
@@ -260,14 +300,16 @@ const (
 
 2. **Open multiple browser tabs** to `http://localhost:8080`
 
-3. **Check server logs** - you'll see:
+3. **Login with different usernames** on each tab
+
+4. **Check server logs** - you'll see:
    ```
    Received encrypted message from Alice (server cannot read content)
    ```
 
-4. **Send messages** between clients
+5. **Send messages** between clients
 
-5. **Verify** that server logs show `[ENCRYPTED]` instead of actual message content
+6. **Verify** that server logs show `[ENCRYPTED]` instead of actual message content
 
 ## 🧪 **Testing**
 
@@ -290,6 +332,11 @@ go test -coverprofile=coverage.out ./...
 go tool cover -html=coverage.out
 ```
 
+**Current Coverage:**
+- **Client**: 42.4% of statements
+- **Server**: 53.1% of statements
+- **Total**: 47.2% of statements
+
 ## 🚨 **Security Considerations**
 
 ### **Current Implementation:**
@@ -297,6 +344,8 @@ go tool cover -html=coverage.out
 - ✅ **Server cannot decrypt messages**
 - ✅ **Public key exchange**
 - ✅ **Web Crypto API** for secure operations
+- ✅ **Session-based authentication** for web clients
+- ✅ **Strict E2E enforcement** - no unencrypted messages
 - ✅ **Shared types** for consistency
 - ✅ **Unified client interfaces**
 
@@ -314,6 +363,11 @@ go tool cover -html=coverage.out
 - **SHA-256**: Message hashing
 - **Web Crypto API**: Secure client-side operations
 - **Base64**: Encoded message transmission
+
+### **Authentication Methods:**
+- **Web Clients**: HTTP-only session cookies
+- **CLI Clients**: URL parameter authentication
+- **Session Management**: Server-side with automatic cleanup
 
 ### **Browser Compatibility:**
 - **Chrome/Edge**: Full support

@@ -1,3 +1,13 @@
+// Message type constants (matching server constants)
+const MESSAGE_TYPES = {
+    SYSTEM: 'system',
+    ENCRYPTED: 'encrypted_message',
+    PUBLIC_KEY_SHARE: 'public_key_share',
+    REQUEST_KEYS: 'request_keys',
+    USER_INFO: 'user_info',
+    LOCAL: 'local_message' // For local display only
+};
+
 let ws;
 let username;
 let myKeyPair = null;
@@ -112,7 +122,7 @@ async function sharePublicKey() {
         const publicKey = await exportPublicKey();
         if (publicKey) {
             const keyShareMsg = {
-                type: 'public_key_share',
+                type: MESSAGE_TYPES.PUBLIC_KEY_SHARE,
                 content: publicKey, // Use actual public key as content
                 sender: username,
                 timestamp: Math.floor(Date.now() / 1000) // Convert to seconds
@@ -198,7 +208,7 @@ async function displayMessage(message) {
     let className = 'message other';
     if (message.sender === username) {
         className = 'message own';
-    } else if (message.type === 'system') {
+    } else if (message.type === MESSAGE_TYPES.SYSTEM) {
         className = 'message system';
     }
     
@@ -213,7 +223,7 @@ async function displayMessage(message) {
     
     let displayText = `[${timeString}] ${message.sender}: `;
     
-    if (message.type === 'encrypted_message') {
+    if (message.type === MESSAGE_TYPES.ENCRYPTED) {
         // Only try to decrypt messages that were encrypted for us
         if (message.recipient !== username) {
             return;
@@ -227,7 +237,8 @@ async function displayMessage(message) {
             // Skip our own encrypted messages (they were meant for others)
             return;
         }
-    } else if (message.type === 'public_key_share') {
+
+    } else if (message.type === MESSAGE_TYPES.PUBLIC_KEY_SHARE) {
         // Store the client's public key silently
         if (message.content && message.sender !== username) {
             // Check if we already have this client's key before storing
@@ -247,14 +258,17 @@ async function displayMessage(message) {
         }
         // Don't display anything for public key sharing
         return;
-    } else if (message.type === 'request_keys') {
+    } else if (message.type === MESSAGE_TYPES.LOCAL) {
+        // Display local messages (our own messages for local display)
+        displayText += message.content;
+    } else if (message.type === MESSAGE_TYPES.REQUEST_KEYS) {
         // Another client is requesting our public key
         if (message.sender !== username && isKeyGenerated) {
             // Share our public key with the requesting client
             setTimeout(() => sharePublicKey(), 100);
         }
         return; // Don't display this message
-    } else if (message.type === 'system') {
+    } else if (message.type === MESSAGE_TYPES.SYSTEM) {
         // Remove "User " prefix from join/leave system messages
         let content = message.content;
         if (content.match(/^User (.+) joined the chat/)) {
@@ -297,17 +311,17 @@ async function sendMessage() {
     const messageInput = document.getElementById('messageInput');
     const message = messageInput.value.trim();
     
-    if (message && ws && ws.readyState === WebSocket.OPEN) {
+    if (message && ws && ws.readyState === WebSocket.OPEN && username !== "Loading...") {
         // Display our own message locally
         const localMessage = {
-            type: 'message',
+            type: MESSAGE_TYPES.LOCAL,
             content: message,
             sender: username,
             timestamp: Math.floor(Date.now() / 1000)
         };
         displayMessage(localMessage);
         
-        // Send encrypted message to all other clients (except ourselves)
+        // Send encrypted messages to all other clients (except ourselves)
         if (otherClients.size > 0) {
             for (const [clientID, publicKey] of otherClients) {
                 // Skip sending to ourselves
@@ -317,10 +331,10 @@ async function sendMessage() {
                 const encryptedContent = await encryptMessage(message, publicKey);
                 if (encryptedContent) {
                     const encryptedMsg = {
-                        type: 'encrypted_message',
+                        type: MESSAGE_TYPES.ENCRYPTED,
                         content: encryptedContent,
                         sender: username,
-                        recipient: clientID, // <-- NEW!
+                        recipient: clientID,
                         timestamp: Math.floor(Date.now() / 1000)
                     };
                     ws.send(JSON.stringify(encryptedMsg));
@@ -333,20 +347,18 @@ async function sendMessage() {
 }
 
 function connect() {
-    // Generate a username
-    username = prompt("Enter your username:") || "Anonymous";
-    if (username === "Anonymous") {
-        username = username + "_" + Date.now();
-    }
+    // Username will be provided by the server via session
+    // We'll get it from the WebSocket connection
+    username = "Loading..."; // Will be updated when WebSocket connects
     
     // Update the title with the username
     updateTitle();
     
     // Generate keys first
     generateKeyPair().then(() => {
-        // Connect to WebSocket
+        // Connect to WebSocket (session will be sent via cookies)
         const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-        const wsUrl = `${protocol}//${window.location.host}/ws?username=${encodeURIComponent(username)}`;
+        const wsUrl = `${protocol}//${window.location.host}/ws`;
         
         ws = new WebSocket(wsUrl);
         
@@ -366,11 +378,11 @@ function connect() {
             // Also request existing clients to share their keys
             setTimeout(() => {
                 if (ws && ws.readyState === WebSocket.OPEN) {
-                    const requestMsg = {
-                        type: 'request_keys',
-                        sender: username,
-                        timestamp: Math.floor(Date.now() / 1000)
-                    };
+                                const requestMsg = {
+                type: MESSAGE_TYPES.REQUEST_KEYS,
+                sender: username,
+                timestamp: Math.floor(Date.now() / 1000)
+            };
                     ws.send(JSON.stringify(requestMsg));
                 }
             }, 500); // Small delay to ensure connection is stable
@@ -378,6 +390,15 @@ function connect() {
         
         ws.onmessage = function(event) {
             const message = JSON.parse(event.data);
+            
+            // Handle user_info message to get username from server
+            if (message.type === MESSAGE_TYPES.USER_INFO) {
+                username = message.content;
+                updateTitle();
+                updateClientsList(); // Update clients list with correct username
+                return;
+            }
+            
             displayMessage(message);
         };
         
@@ -403,6 +424,17 @@ document.getElementById('messageInput').addEventListener('keypress', function(e)
     if (e.key === 'Enter') {
         sendMessage();
     }
+});
+
+// Logout functionality
+document.getElementById('logoutBtn').addEventListener('click', function() {
+    // Close WebSocket connection
+    if (ws) {
+        ws.close();
+    }
+    
+    // Redirect to server logout route
+    window.location.href = '/logout';
 });
 
 // Initialize
