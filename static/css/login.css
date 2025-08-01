@@ -39,17 +39,18 @@ body {
 
 /* Login Container */
 .login-container {
-    background: rgba(255, 255, 255, 0.95);
-    backdrop-filter: blur(20px);
-    border-radius: var(--radius-lg);
-    box-shadow: var(--shadow-lg);
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    padding: 3rem;
-    width: 100%;
-    max-width: 400px;
-    text-align: center;
-    position: relative;
-    overflow: hidden;
+	background: rgba(255, 255, 255, 0.95);
+	backdrop-filter: blur(20px);
+	border-radius: var(--radius-lg);
+	box-shadow: var(--shadow-lg);
+	border: 1px solid rgba(255, 255, 255, 0.2);
+	padding: 3rem;
+	width: 100%;
+	max-width: 400px;
+	text-align: center;
+	position: relative;
+	overflow: hidden;
+	z-index: 1; /* Ensure it's above the background but below modal */
 }
 
 
@@ -109,9 +110,16 @@ body {
 }
 
 .form-group input:focus {
-    outline: none;
     border-color: var(--primary-color);
     box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+    outline: none;
+}
+
+.help-text {
+    color: var(--text-secondary);
+    font-size: 0.75rem;
+    margin-top: 0.25rem;
+    display: block;
 }
 
 .form-group input:invalid {
@@ -184,29 +192,27 @@ body {
     }
 }
 
-/* Loading State */
-.loading {
+/* Loading States - More specific to individual buttons */
+button.passkey-btn.loading {
     opacity: 0.7;
-    pointer-events: none;
-}
-
-.loading .submit-btn {
+    cursor: not-allowed;
     position: relative;
-    color: transparent;
+    color: inherit; /* Keep text visible */
 }
 
-.loading .submit-btn::after {
+button.passkey-btn.loading::after {
     content: '';
     position: absolute;
     top: 50%;
     left: 50%;
-    width: 20px;
-    height: 20px;
-    margin: -10px 0 0 -10px;
+    width: 1rem;
+    height: 1rem;
+    margin: -0.5rem 0 0 -0.5rem;
     border: 2px solid transparent;
-    border-top: 2px solid white;
+    border-top: 2px solid currentColor;
     border-radius: 50%;
     animation: spin 1s linear infinite;
+    z-index: 1; /* Ensure spinner appears above text */
 }
 
 @keyframes spin {
@@ -214,21 +220,219 @@ body {
     100% { transform: rotate(360deg); }
 }
 
-/* Responsive Design */
-@media (max-width: 480px) {
-    .login-container {
-        margin: 1rem;
-        padding: 2rem;
-    }
-    
-    .login-header h1 {
-        font-size: 2rem;
-    }
-    
-    .login-header p {
-        font-size: 1rem;
-    }
+/* Error States */
+.error .passkey-btn {
+	border-color: #ef4444;
+	color: #ef4444;
 }
+
+.error .passkey-btn:hover {
+	background: #ef4444;
+	color: white;
+}
+
+/* Modal Styles */
+.modal {
+	display: none;
+	position: fixed;
+	z-index: 1000;
+	left: 0;
+	top: 0;
+	width: 100%;
+	height: 100%;
+	background-color: rgba(0, 0, 0, 0.5);
+	backdrop-filter: blur(4px);
+	opacity: 0;
+	visibility: hidden;
+	transition: opacity 0.3s ease, visibility 0.3s ease;
+}
+
+.modal.show {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	opacity: 1;
+	visibility: visible;
+}
+
+.modal-content {
+	background: rgba(255, 255, 255, 0.95);
+	backdrop-filter: blur(20px);
+	border-radius: var(--radius-lg);
+	box-shadow: var(--shadow-lg);
+	border: 1px solid rgba(255, 255, 255, 0.2);
+	padding: 0;
+	width: 90%;
+	max-width: 400px;
+	position: relative;
+	animation: modalSlideIn 0.3s ease-out;
+}
+
+@keyframes modalSlideIn {
+	from {
+		opacity: 0;
+		transform: translateY(-20px) scale(0.95);
+	}
+	to {
+		opacity: 1;
+		transform: translateY(0) scale(1);
+	}
+}
+
+.modal-header {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	padding: 1.5rem 1.5rem 0 1.5rem;
+	margin-bottom: 1rem;
+}
+
+.modal-header h3 {
+	margin: 0;
+	font-size: 1.25rem;
+	font-weight: 600;
+	color: var(--text-primary);
+}
+
+.modal-close {
+	background: none;
+	border: none;
+	font-size: 1.5rem;
+	color: var(--text-secondary);
+	cursor: pointer;
+	padding: 0;
+	width: 2rem;
+	height: 2rem;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	border-radius: 50%;
+	transition: all 0.2s ease;
+}
+
+.modal-close:hover {
+	background: rgba(0, 0, 0, 0.1);
+	color: var(--text-primary);
+}
+
+.modal-body {
+	padding: 0 1.5rem 1.5rem 1.5rem;
+}
+
+.modal-buttons {
+	display: flex;
+	flex-direction: column;
+	gap: 0.75rem;
+	margin-top: 1.5rem;
+}
+
+.secondary-btn {
+	background: rgba(255, 255, 255, 0.9);
+	color: var(--text-secondary);
+	border: 2px solid var(--border-color);
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	gap: 0.5rem;
+	transition: all 0.2s ease;
+	padding: 0.875rem 1.5rem;
+	font-size: 1rem;
+	font-weight: 600;
+	border-radius: var(--radius-md);
+	cursor: pointer;
+}
+
+.secondary-btn:hover {
+	background: var(--text-secondary);
+	color: white;
+	border-color: var(--text-secondary);
+}
+
+/* Responsive Modal */
+@media (max-width: 480px) {
+	.modal-content {
+		width: 95%;
+		margin: 1rem;
+	}
+	
+	.modal-header {
+		padding: 1rem 1rem 0 1rem;
+	}
+	
+	.modal-body {
+		padding: 0 1rem 1rem 1rem;
+	}
+} 
+
+/* Success Notification */
+.success-notification {
+    position: fixed;
+    top: 2rem;
+    right: 2rem;
+    background: linear-gradient(135deg, #10b981, #059669);
+    color: white;
+    padding: 1rem 1.5rem;
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-lg);
+    z-index: 2000;
+    transform: translateX(100%);
+    transition: transform 0.3s ease;
+    max-width: 400px;
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    visibility: hidden;
+    opacity: 0;
+}
+
+.success-notification.show {
+    transform: translateX(0);
+    visibility: visible;
+    opacity: 1;
+}
+
+.success-notification .notification-header {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 0.5rem;
+    font-weight: 600;
+}
+
+.success-notification .notification-icon {
+    font-size: 1.25rem;
+}
+
+.success-notification .notification-message {
+    font-size: 0.875rem;
+    line-height: 1.4;
+    opacity: 0.9;
+}
+
+.success-notification .notification-close {
+    position: absolute;
+    top: 0.5rem;
+    right: 0.5rem;
+    background: none;
+    border: none;
+    color: white;
+    cursor: pointer;
+    font-size: 1.25rem;
+    opacity: 0.7;
+    transition: opacity 0.2s ease;
+}
+
+.success-notification .notification-close:hover {
+    opacity: 1;
+}
+
+@media (max-width: 480px) {
+    .success-notification {
+        top: 1rem;
+        right: 1rem;
+        left: 1rem;
+        max-width: none;
+    }
+} 
 
 /* Success Animation */
 .success {
@@ -275,6 +479,49 @@ body {
 
 .security-badge::before {
     content: '';
-    font-size: 1.125rem;
-    flex-shrink: 0;
+    margin-right: 0.5rem;
+}
+
+/* Passkey Section */
+.passkey-section {
+    position: relative;
+    z-index: 1;
+}
+
+.passkey-buttons {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    margin-top: 1.5rem;
+}
+
+.passkey-btn {
+    background: rgba(255, 255, 255, 0.9);
+    color: var(--text-primary);
+    border: 2px solid var(--primary-color);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    transition: all 0.2s ease;
+    padding: 0.875rem 1.5rem;
+    font-size: 1rem;
+    font-weight: 600;
+    border-radius: var(--radius-md);
+    cursor: pointer;
+}
+
+.passkey-btn:hover:not(:disabled) {
+    background: var(--primary-color);
+    color: white;
+    border-color: var(--primary-color);
+}
+
+.passkey-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.passkey-icon {
+    font-size: 1rem;
 } 

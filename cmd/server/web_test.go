@@ -80,7 +80,8 @@ func TestHTMLContent(t *testing.T) {
 	// Check for essential HTML elements
 	expectedElements := []string{
 		"<title>Chapp - E2E Chat</title>",
-		"<h1>Chapp</h1>",
+		"class=\"chapp-logo\"",
+		"class=\"logo-text\"",
 		"id=\"messages\"",
 		"id=\"messageInput\"",
 		"id=\"sendButton\"",

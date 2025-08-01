@@ -13,6 +13,26 @@ import (
 	"github.com/gorilla/websocket"
 )
 
+// Helper function to register a test user
+func registerTestUser(username string) {
+	user := &User{
+		Username:     username,
+		Created:      time.Now(),
+		LastLogin:    time.Now(),
+		IsRegistered: true,
+	}
+	users[username] = user
+}
+
+// Helper function to clean up test users
+func cleanupTestUsers() {
+	usersMutex.Lock()
+	defer usersMutex.Unlock()
+	for username := range users {
+		delete(users, username)
+	}
+}
+
 // TestServeHome tests the home page serving
 func TestServeHome(t *testing.T) {
 	// Test without session cookie (should redirect to login)
@@ -200,6 +220,10 @@ func TestMessageTypes(t *testing.T) {
 
 // TestWebSocketUpgrade tests WebSocket upgrade functionality
 func TestWebSocketUpgrade(t *testing.T) {
+	// Register test user
+	registerTestUser("testuser")
+	defer cleanupTestUsers()
+
 	hub := NewHub()
 	go hub.Run()
 
@@ -239,6 +263,10 @@ func TestWebSocketUpgrade(t *testing.T) {
 
 // TestClientReadPump tests client message reading
 func TestClientReadPump(t *testing.T) {
+	// Register test user
+	registerTestUser("testuser")
+	defer cleanupTestUsers()
+
 	hub := NewHub()
 	go hub.Run()
 
@@ -277,6 +305,12 @@ func TestClientReadPump(t *testing.T) {
 
 // TestConcurrentConnections tests multiple concurrent connections
 func TestConcurrentConnections(t *testing.T) {
+	// Register test users
+	for i := 0; i < 5; i++ {
+		registerTestUser("user" + string(rune('0'+i)))
+	}
+	defer cleanupTestUsers()
+
 	hub := NewHub()
 	go hub.Run()
 
@@ -310,8 +344,13 @@ func TestConcurrentConnections(t *testing.T) {
 	}
 }
 
-// TestMessageBroadcastingToMultipleClients tests broadcasting to multiple clients
+// TestMessageBroadcastingToMultipleClients tests message broadcasting to multiple clients
 func TestMessageBroadcastingToMultipleClients(t *testing.T) {
+	// Register test users
+	registerTestUser("user1")
+	registerTestUser("user2")
+	defer cleanupTestUsers()
+
 	hub := NewHub()
 	go hub.Run()
 
@@ -322,14 +361,13 @@ func TestMessageBroadcastingToMultipleClients(t *testing.T) {
 
 	// Connect two clients
 	wsURL1 := "ws" + strings.TrimPrefix(server.URL, "http") + "/ws?username=user1"
-	wsURL2 := "ws" + strings.TrimPrefix(server.URL, "http") + "/ws?username=user2"
-
 	conn1, _, err := websocket.DefaultDialer.Dial(wsURL1, nil)
 	if err != nil {
 		t.Fatalf("Failed to connect client 1: %v", err)
 	}
 	defer conn1.Close()
 
+	wsURL2 := "ws" + strings.TrimPrefix(server.URL, "http") + "/ws?username=user2"
 	conn2, _, err := websocket.DefaultDialer.Dial(wsURL2, nil)
 	if err != nil {
 		t.Fatalf("Failed to connect client 2: %v", err)
@@ -359,6 +397,10 @@ func TestMessageBroadcastingToMultipleClients(t *testing.T) {
 
 // TestInvalidMessageHandling tests handling of invalid messages
 func TestInvalidMessageHandling(t *testing.T) {
+	// Register test user
+	registerTestUser("testuser")
+	defer cleanupTestUsers()
+
 	hub := NewHub()
 	go hub.Run()
 
@@ -369,6 +411,7 @@ func TestInvalidMessageHandling(t *testing.T) {
 
 	wsURL := "ws" + strings.TrimPrefix(server.URL, "http") + "/ws?username=testuser"
 
+	// Connect to WebSocket
 	conn, _, err := websocket.DefaultDialer.Dial(wsURL, nil)
 	if err != nil {
 		t.Fatalf("Failed to connect to WebSocket: %v", err)

@@ -17,30 +17,79 @@
             <p>End-to-End Encrypted Chat</p>
         </div>
         
-        <form id="loginForm" method="POST" action="/login" class="login-form">
+        <!-- Passkey Authentication -->
+        <div class="passkey-section">
             <div class="error-message" id="error">Please enter a valid username</div>
             
-            <div class="form-group">
-                <label for="username">Username</label>
-                <input 
-                    type="text" 
-                    id="username" 
-                    name="username" 
-                    placeholder="Enter your username"
-                    required
-                    autocomplete="off"
-                    autofocus
-                >
+            <div class="passkey-buttons">
+                <button type="button" id="passkeyLoginBtn" class="submit-btn passkey-btn" disabled>
+                    <span class="passkey-icon">🔑</span>
+                    Login with Passkey
+                </button>
+                
+                <button type="button" id="passkeyRegisterBtn" class="submit-btn passkey-btn" disabled>
+                    <span class="passkey-icon">🔑</span>
+                    Create Passkey Account
+                </button>
             </div>
-            
-            <button type="submit" class="submit-btn">Join Chat</button>
-        </form>
+        </div>
 
         <div class="security-badge">
             🔐 Secure by Design: Your messages are encrypted on your device
         </div>
     </div>
 
+    <!-- Success Notification -->
+    <div id="successNotification" class="success-notification">
+        <button type="button" class="notification-close" id="notificationClose">&times;</button>
+        <div class="notification-header">
+            <span class="notification-icon">✅</span>
+            <span>Passkey Created Successfully!</span>
+        </div>
+        <div class="notification-message">
+            Your passkey is ready! Use "Login with Passkey" to access your account.
+        </div>
+    </div>
+
+    <!-- Registration Modal -->
+    <div id="registrationModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Create Passkey Account</h3>
+                <button type="button" class="modal-close" id="modalClose">&times;</button>
+            </div>
+            
+            <div class="modal-body">
+                <div class="form-group">
+                    <label for="username">Username</label>
+                    <input 
+                        type="text" 
+                        id="username" 
+                        name="username" 
+                        placeholder="Enter your username"
+                        autocomplete="off"
+                        autofocus
+                    >
+                    <small class="help-text">Choose a username for your account</small>
+                </div>
+                
+                <div class="error-message" id="modalError"></div>
+                
+                <div class="modal-buttons">
+                    <button type="button" id="confirmRegisterBtn" class="submit-btn passkey-btn">
+                        <span class="passkey-icon">🔑</span>
+                        Create Passkey
+                    </button>
+                    
+                    <button type="button" class="submit-btn secondary-btn" id="cancelRegisterBtn">
+                        Cancel
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/webauthn.js"></script>
     <script src="js/login.js"></script>
 </body>
 </html> 

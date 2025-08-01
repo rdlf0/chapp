@@ -14,6 +14,7 @@ import (
 
 	"chapp/pkg/types"
 
+	"github.com/go-webauthn/webauthn/webauthn"
 	"github.com/gorilla/websocket"
 )
 
@@ -93,6 +94,109 @@ func cleanupSessions() {
 		if session.Created.Before(cutoff) {
 			delete(sessions, id)
 		}
+	}
+}
+
+// User management
+type User struct {
+	Username     string    `json:"username"`
+	Created      time.Time `json:"created"`
+	LastLogin    time.Time `json:"last_login"`
+	PasskeyID    string    `json:"passkey_id,omitempty"`
+	PublicKey    string    `json:"public_key,omitempty"`
+	IsRegistered bool      `json:"is_registered"`
+}
+
+var users = make(map[string]*User)
+var usersMutex sync.RWMutex
+
+// registerUser creates a new user account
+func registerUser(username, passkeyID string) error {
+	usersMutex.Lock()
+	defer usersMutex.Unlock()
+
+	if _, exists := users[username]; exists {
+		return fmt.Errorf("user %s already exists", username)
+	}
+
+	user := &User{
+		Username:     username,
+		Created:      time.Now(),
+		LastLogin:    time.Now(),
+		PasskeyID:    passkeyID,
+		IsRegistered: true,
+	}
+
+	users[username] = user
+	log.Printf("Registered new user: %s", username)
+	return nil
+}
+
+// getUser retrieves a user by username
+func getUser(username string) *User {
+	usersMutex.RLock()
+	defer usersMutex.RUnlock()
+	return users[username]
+}
+
+// updateUserLastLogin updates the user's last login time
+func updateUserLastLogin(username string) {
+	usersMutex.Lock()
+	defer usersMutex.Unlock()
+
+	if user, exists := users[username]; exists {
+		user.LastLogin = time.Now()
+	}
+}
+
+// validateUser checks if a user exists and is registered
+func validateUser(username string) bool {
+	user := getUser(username)
+	return user != nil && user.IsRegistered
+}
+
+// WebAuthn configuration
+var webAuthn *webauthn.WebAuthn
+
+// WebAuthnUser implements the webauthn.User interface
+type WebAuthnUser struct {
+	*User
+}
+
+func (u *WebAuthnUser) WebAuthnID() []byte {
+	return []byte(u.Username)
+}
+
+func (u *WebAuthnUser) WebAuthnName() string {
+	return u.Username
+}
+
+func (u *WebAuthnUser) WebAuthnDisplayName() string {
+	return u.Username
+}
+
+func (u *WebAuthnUser) WebAuthnIcon() string {
+	return ""
+}
+
+func (u *WebAuthnUser) WebAuthnCredentials() []webauthn.Credential {
+	// For now, we'll store credentials in the User struct
+	// In a real implementation, you'd have a separate credentials table
+	return []webauthn.Credential{}
+}
+
+// initializeWebAuthn sets up the WebAuthn configuration
+func initializeWebAuthn() {
+	config := &webauthn.Config{
+		RPDisplayName: "Chapp",
+		RPID:          "localhost",                       // Change this for production
+		RPOrigins:     []string{"http://localhost:8080"}, // Change this for production
+	}
+
+	var err error
+	webAuthn, err = webauthn.New(config)
+	if err != nil {
+		log.Fatal("Failed to initialize WebAuthn:", err)
 	}
 }
 
@@ -276,13 +380,21 @@ func ServeWs(hub *Hub, w http.ResponseWriter, r *http.Request) {
 		}
 		username = session.Username
 	} else {
-		// CLI client with username parameter (backward compatibility)
+		// CLI client with username parameter (for backward compatibility)
 		username = r.URL.Query().Get("username")
 		if username == "" {
 			log.Printf("WebSocket connection rejected: no session or username")
 			http.Error(w, "Unauthorized", http.StatusUnauthorized)
 			return
 		}
+	}
+
+	// Check if user is registered with passkey
+	user := getUser(username)
+	if user == nil || !user.IsRegistered {
+		log.Printf("WebSocket connection rejected: user not registered with passkey")
+		http.Error(w, "Unauthorized - User must be registered with passkey", http.StatusUnauthorized)
+		return
 	}
 
 	conn, err := upgrader.Upgrade(w, r, nil)
@@ -303,6 +415,10 @@ func ServeWs(hub *Hub, w http.ResponseWriter, r *http.Request) {
 
 	// Send user info to client (only for web clients)
 	if cookie != nil && cookie.Value != "" {
+		// Check if user is registered
+		user := getUser(username)
+		isRegistered := user != nil && user.IsRegistered
+
 		userInfoMsg := types.Message{
 			Type:      types.MessageTypeUserInfo,
 			Content:   username,
@@ -311,6 +427,13 @@ func ServeWs(hub *Hub, w http.ResponseWriter, r *http.Request) {
 		}
 		userInfoBytes, _ := json.Marshal(userInfoMsg)
 		client.send <- userInfoBytes
+
+		// Log connection with registration status
+		if isRegistered {
+			log.Printf("Registered user connected: %s", username)
+		} else {
+			log.Printf("Guest user connected: %s", username)
+		}
 	}
 
 	// Start goroutines for reading and writing
@@ -327,7 +450,7 @@ func ServeLogin(w http.ResponseWriter, r *http.Request) {
 
 	switch r.Method {
 	case "GET":
-		// Serve the login page
+		// Serve the passkey-only login page
 		paths := []string{"static/login.html", "../static/login.html", "../../static/login.html"}
 		for _, path := range paths {
 			if _, err := os.Stat(path); err == nil {
@@ -338,52 +461,254 @@ func ServeLogin(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Not found", http.StatusNotFound)
 
 	case "POST":
-		// Handle login form submission
-		if err := r.ParseForm(); err != nil {
-			http.Error(w, "Bad request", http.StatusBadRequest)
-			return
-		}
-
-		username := r.FormValue("username")
-		if username == "" {
-			http.Error(w, "Username is required", http.StatusBadRequest)
-			return
-		}
-
-		// Clean username (remove special characters, limit length)
-		username = username[:min(len(username), 20)]
-		for i, char := range username {
-			if !((char >= 'a' && char <= 'z') || (char >= 'A' && char <= 'Z') ||
-				(char >= '0' && char <= '9') || char == '_' || char == '-') {
-				username = username[:i] + username[i+1:]
-			}
-		}
-
-		if len(username) < 2 {
-			http.Error(w, "Username must be at least 2 characters", http.StatusBadRequest)
-			return
-		}
-
-		// Create session
-		sessionID := createSession(username)
-
-		// Set session cookie
-		http.SetCookie(w, &http.Cookie{
-			Name:     types.SessionCookieName,
-			Value:    sessionID,
-			Path:     "/",
-			MaxAge:   86400, // 24 hours
-			HttpOnly: true,
-			Secure:   false, // Set to true in production with HTTPS
-			SameSite: http.SameSiteLaxMode,
-		})
-
-		// Redirect to chat
-		http.Redirect(w, r, "/", http.StatusSeeOther)
+		// Traditional login is no longer supported
+		http.Error(w, "Traditional login is not supported. Please use passkey authentication.", http.StatusMethodNotAllowed)
 
 	default:
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 	}
+}
+
+// ServeRegister handles user registration requests
+func ServeRegister(w http.ResponseWriter, r *http.Request) {
+	if r.URL.Path != "/register" {
+		http.Error(w, "Not found", http.StatusNotFound)
+		return
+	}
+
+	switch r.Method {
+	case "GET":
+		// Redirect to login page for passkey registration
+		http.Redirect(w, r, "/login", http.StatusSeeOther)
+
+	case "POST":
+		// Traditional registration is no longer supported
+		http.Error(w, "Traditional registration is not supported. Please use passkey registration.", http.StatusMethodNotAllowed)
+
+	default:
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+	}
+}
+
+// ServeWebAuthnBeginRegistration starts the WebAuthn registration process
+func ServeWebAuthnBeginRegistration(w http.ResponseWriter, r *http.Request) {
+	if r.Method != "POST" {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	var req struct {
+		Username string `json:"username"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request", http.StatusBadRequest)
+		return
+	}
+
+	if req.Username == "" {
+		http.Error(w, "Username is required", http.StatusBadRequest)
+		return
+	}
+
+	// Clean username (remove special characters, limit length)
+	username := req.Username[:min(len(req.Username), 20)]
+	for i, char := range username {
+		if !((char >= 'a' && char <= 'z') || (char >= 'A' && char <= 'Z') ||
+			(char >= '0' && char <= '9') || char == '_' || char == '-') {
+			username = username[:i] + username[i+1:]
+		}
+	}
+
+	if len(username) < 2 {
+		http.Error(w, "Username must be at least 2 characters", http.StatusBadRequest)
+		return
+	}
+
+	// Check if user already exists
+	if validateUser(username) {
+		http.Error(w, "User already exists", http.StatusConflict)
+		return
+	}
+
+	// Create a new user for WebAuthn registration
+	user := &User{
+		Username:     username,
+		Created:      time.Now(),
+		LastLogin:    time.Now(),
+		IsRegistered: false, // Will be set to true after successful registration
+	}
+
+	webAuthnUser := &WebAuthnUser{User: user}
+
+	// Begin WebAuthn registration
+	options, _, err := webAuthn.BeginRegistration(webAuthnUser)
+	if err != nil {
+		log.Printf("WebAuthn registration failed: %v", err)
+		http.Error(w, "Registration failed", http.StatusInternalServerError)
+		return
+	}
+
+	// The default WebAuthn options should support external authenticators
+	// The browser will show all available authenticators including Enpass
+
+	// Store the user temporarily (in production, use a proper session store)
+	usersMutex.Lock()
+	users[username] = user
+	usersMutex.Unlock()
+
+	// Return the registration options
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(options)
+}
+
+// ServeWebAuthnFinishRegistration completes the WebAuthn registration process
+func ServeWebAuthnFinishRegistration(w http.ResponseWriter, r *http.Request) {
+	if r.Method != "POST" {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	// Parse the credential creation response from the request body
+	var req struct {
+		ID       string `json:"id"`
+		RawID    string `json:"rawId"`
+		Type     string `json:"type"`
+		Username string `json:"username"` // Add username to the request structure
+		Response struct {
+			AttestationObject string `json:"attestationObject"`
+			ClientDataJSON    string `json:"clientDataJSON"`
+		} `json:"response"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		log.Printf("Failed to parse credential creation response: %v", err)
+		http.Error(w, "Invalid response", http.StatusBadRequest)
+		return
+	}
+
+	// Get username from the request body
+	username := req.Username
+	if username == "" {
+		http.Error(w, "Username not found in request", http.StatusBadRequest)
+		return
+	}
+
+	user := getUser(username)
+	if user == nil {
+		http.Error(w, "User not found", http.StatusNotFound)
+		return
+	}
+
+	// Create a mock credential for now (in production, you'd validate the actual credential)
+	// For now, we'll just mark the user as registered
+	usersMutex.Lock()
+	user.IsRegistered = true
+	user.PasskeyID = req.ID
+	usersMutex.Unlock()
+
+	log.Printf("WebAuthn registration completed for user: %s", username)
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]string{"status": "success"})
+}
+
+// ServeWebAuthnBeginLogin starts the WebAuthn authentication process
+func ServeWebAuthnBeginLogin(w http.ResponseWriter, r *http.Request) {
+	if r.Method != "POST" {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	// Generate a random challenge for WebAuthn
+	challenge := make([]byte, 32)
+	_, err := rand.Read(challenge)
+	if err != nil {
+		log.Printf("Failed to generate challenge: %v", err)
+		http.Error(w, "Login failed", http.StatusInternalServerError)
+		return
+	}
+
+	// Return WebAuthn authentication options
+	response := map[string]interface{}{
+		"publicKey": map[string]interface{}{
+			"challenge":        challenge,
+			"rpId":             "localhost",
+			"timeout":          60000,
+			"userVerification": "preferred",
+		},
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(response)
+}
+
+// ServeWebAuthnFinishLogin completes the WebAuthn authentication process
+func ServeWebAuthnFinishLogin(w http.ResponseWriter, r *http.Request) {
+	if r.Method != "POST" {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	// Parse the credential assertion response from the request body
+	var req struct {
+		ID       string `json:"id"`
+		RawID    string `json:"rawId"`
+		Type     string `json:"type"`
+		Response struct {
+			AuthenticatorData string `json:"authenticatorData"`
+			ClientDataJSON    string `json:"clientDataJSON"`
+			Signature         string `json:"signature"`
+		} `json:"response"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		log.Printf("Failed to parse credential request response: %v", err)
+		http.Error(w, "Invalid response", http.StatusBadRequest)
+		return
+	}
+
+	// Find the user by passkey ID
+	var authenticatedUser *User
+	usersMutex.RLock()
+	for _, user := range users {
+		if user.PasskeyID == req.ID {
+			authenticatedUser = user
+			break
+		}
+	}
+	usersMutex.RUnlock()
+
+	if authenticatedUser == nil {
+		http.Error(w, "User not found or passkey not recognized", http.StatusNotFound)
+		return
+	}
+
+	if !authenticatedUser.IsRegistered {
+		http.Error(w, "User not fully registered", http.StatusUnauthorized)
+		return
+	}
+
+	// For now, we'll just mark the user as logged in
+	// In production, you'd validate the actual credential
+	updateUserLastLogin(authenticatedUser.Username)
+
+	// Create session and set cookie
+	sessionID := createSession(authenticatedUser.Username)
+	http.SetCookie(w, &http.Cookie{
+		Name:     types.SessionCookieName,
+		Value:    sessionID,
+		Path:     "/",
+		HttpOnly: true,
+		MaxAge:   86400, // 24 hours
+	})
+
+	log.Printf("WebAuthn login completed for user: %s", authenticatedUser.Username)
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]string{
+		"status":   "success",
+		"username": authenticatedUser.Username,
+	})
 }
 
 // ServeLogout handles logout requests
@@ -415,6 +740,67 @@ func ServeLogout(w http.ResponseWriter, r *http.Request) {
 
 	// Redirect to login page
 	http.Redirect(w, r, "/login", http.StatusSeeOther)
+}
+
+// ServeCLIAuth handles CLI authentication redirect
+func ServeCLIAuth(w http.ResponseWriter, r *http.Request) {
+	// Get session cookie to check if user is authenticated
+	cookie, err := r.Cookie(types.SessionCookieName)
+	if err != nil || cookie.Value == "" {
+		// Not authenticated, redirect to login
+		http.Redirect(w, r, "/login?cli=true", http.StatusSeeOther)
+		return
+	}
+
+	// Get session
+	session := getSession(cookie.Value)
+	if session == nil {
+		// Invalid session, redirect to login
+		http.Redirect(w, r, "/login?cli=true", http.StatusSeeOther)
+		return
+	}
+
+	// Check if user exists and is registered
+	user := getUser(session.Username)
+	if user == nil || !user.IsRegistered {
+		http.Redirect(w, r, "/login?cli=true", http.StatusSeeOther)
+		return
+	}
+
+	// Write username to temporary file for CLI to read
+	tempFile := "/tmp/chapp_auth_" + session.Username
+	err = os.WriteFile(tempFile, []byte(session.Username), 0644)
+	if err != nil {
+		// Try alternative temp directory
+		altTempFile := os.TempDir() + "/chapp_auth_" + session.Username
+		os.WriteFile(altTempFile, []byte(session.Username), 0644)
+	}
+
+	html := `<!DOCTYPE html>
+<html>
+<head>
+    <title>CLI Authentication Success</title>
+    <style>
+        body { font-family: Arial, sans-serif; text-align: center; padding: 50px; }
+        .success { color: #28a745; font-size: 18px; margin: 20px 0; }
+        .info { color: #6c757d; margin: 10px 0; }
+    </style>
+</head>
+<body>
+    <div class="success">✅ Authentication Successful!</div>
+    <div class="info">Username: <strong>` + session.Username + `</strong></div>
+    <div class="info">You can now return to your terminal and use the CLI.</div>
+    <div class="info">The CLI should automatically detect your username.</div>
+    <script>
+        // Auto-close after 3 seconds
+        setTimeout(function() {
+            window.close();
+        }, 3000);
+    </script>
+</body>
+</html>`
+
+	w.Write([]byte(html))
 }
 
 // min returns the minimum of two integers
@@ -503,6 +889,9 @@ func ServeStatic(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
+	// Initialize WebAuthn
+	initializeWebAuthn()
+
 	hub := NewHub()
 	go hub.Run()
 
@@ -517,7 +906,16 @@ func main() {
 
 	http.HandleFunc("/", ServeHome)
 	http.HandleFunc("/login", ServeLogin)
+	http.HandleFunc("/register", ServeRegister)
 	http.HandleFunc("/logout", ServeLogout)
+	http.HandleFunc("/cli-auth", ServeCLIAuth) // Add the new CLI auth handler
+
+	// WebAuthn endpoints
+	http.HandleFunc("/webauthn/begin-registration", ServeWebAuthnBeginRegistration)
+	http.HandleFunc("/webauthn/finish-registration", ServeWebAuthnFinishRegistration)
+	http.HandleFunc("/webauthn/begin-login", ServeWebAuthnBeginLogin)
+	http.HandleFunc("/webauthn/finish-login", ServeWebAuthnFinishLogin)
+
 	http.HandleFunc("/ws", func(w http.ResponseWriter, r *http.Request) {
 		ServeWs(hub, w, r)
 	})
