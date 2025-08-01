@@ -446,8 +446,10 @@ function connect() {
         
         ws.onopen = function() {
             const connectionStatus = document.getElementById('connectionStatus');
+            const connectionIcon = connectionStatus.querySelector('.connection-icon');
             connectionStatus.querySelector('.connection-text').textContent = 'Connected';
             connectionStatus.className = 'connection-indicator status-connected';
+            connectionIcon.textContent = '🔗'; // Reset to link icon for connected state
             document.getElementById('messageInput').disabled = false;
             document.getElementById('sendButton').disabled = false;
             document.getElementById('messageInput').focus();
@@ -487,8 +489,10 @@ function connect() {
         
         ws.onclose = function() {
             const connectionStatus = document.getElementById('connectionStatus');
+            const connectionIcon = connectionStatus.querySelector('.connection-icon');
             connectionStatus.querySelector('.connection-text').textContent = 'Disconnected';
             connectionStatus.className = 'connection-indicator status-disconnected';
+            connectionIcon.textContent = '❌'; // Change to X icon for disconnected state
             document.getElementById('messageInput').disabled = true;
             document.getElementById('sendButton').disabled = true;
         };

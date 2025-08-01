@@ -125,7 +125,8 @@ body {
 
 .connection-icon {
     font-size: 1rem;
-    transition: all 0.2s ease;
+    transition: all 0.3s ease;
+    display: inline-block;
 }
 
 .connection-text {
@@ -134,10 +135,43 @@ body {
 
 .status-connected .connection-icon {
     color: #10b981;
+    animation: pulse-connected 3s infinite;
+}
+
+@keyframes pulse-connected {
+    0%, 100% {
+        transform: scale(1);
+    }
+    50% {
+        transform: scale(1.1);
+    }
+}
+
+.status-connected {
+    background: rgba(16, 185, 129, 0.1);
+    border-color: rgba(16, 185, 129, 0.3);
 }
 
 .status-disconnected .connection-icon {
     color: #ef4444;
+    animation: pulse-disconnected 2s infinite;
+}
+
+@keyframes pulse-disconnected {
+    0%, 100% {
+        transform: scale(1);
+        opacity: 1;
+    }
+    50% {
+        transform: scale(1.2);
+        opacity: 0.8;
+    }
+}
+
+.status-disconnected {
+    background: rgba(239, 68, 68, 0.15);
+    border-color: rgba(239, 68, 68, 0.3);
+    box-shadow: 0 0 10px rgba(239, 68, 68, 0.3);
 }
 
 /* Logout Button */
