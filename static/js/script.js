@@ -436,6 +436,11 @@ function connect() {
     // Update the title with the username
     updateTitle();
     
+    // Set connecting state
+    const connectionStatus = document.getElementById('connectionStatus');
+    connectionStatus.querySelector('.connection-text').textContent = 'Connecting...';
+    connectionStatus.className = 'connection-indicator';
+    
     // Generate keys first
     generateKeyPair().then(() => {
         // Connect to WebSocket (session will be sent via cookies)
@@ -446,10 +451,8 @@ function connect() {
         
         ws.onopen = function() {
             const connectionStatus = document.getElementById('connectionStatus');
-            const connectionIcon = connectionStatus.querySelector('.connection-icon');
             connectionStatus.querySelector('.connection-text').textContent = 'Connected';
             connectionStatus.className = 'connection-indicator status-connected';
-            connectionIcon.textContent = '🔗'; // Reset to link icon for connected state
             document.getElementById('messageInput').disabled = false;
             document.getElementById('sendButton').disabled = false;
             document.getElementById('messageInput').focus();
@@ -489,10 +492,8 @@ function connect() {
         
         ws.onclose = function() {
             const connectionStatus = document.getElementById('connectionStatus');
-            const connectionIcon = connectionStatus.querySelector('.connection-icon');
             connectionStatus.querySelector('.connection-text').textContent = 'Disconnected';
             connectionStatus.className = 'connection-indicator status-disconnected';
-            connectionIcon.textContent = '❌'; // Change to X icon for disconnected state
             document.getElementById('messageInput').disabled = true;
             document.getElementById('sendButton').disabled = true;
         };

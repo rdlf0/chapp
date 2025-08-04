@@ -118,60 +118,39 @@ body {
     font-size: 0.875rem;
     color: rgba(255, 255, 255, 0.9);
     padding: 0.5rem 0.75rem;
-    background: rgba(255, 255, 255, 0.1);
-    border-radius: var(--radius-md);
-    border: 1px solid rgba(255, 255, 255, 0.2);
+    background: transparent;
+    border: none;
+    transition: all 0.3s ease;
 }
 
-.connection-icon {
-    font-size: 1rem;
+.connection-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
     transition: all 0.3s ease;
-    display: inline-block;
+    box-shadow: 0 0 4px rgba(0, 0, 0, 0.2);
 }
 
 .connection-text {
     font-weight: 500;
+    transition: all 0.3s ease;
 }
 
-.status-connected .connection-icon {
-    color: #10b981;
-    animation: pulse-connected 3s infinite;
+.status-connected .connection-dot {
+    background-color: #10b981;
+    box-shadow: 0 0 8px rgba(16, 185, 129, 0.4);
 }
 
-@keyframes pulse-connected {
-    0%, 100% {
-        transform: scale(1);
-    }
-    50% {
-        transform: scale(1.1);
-    }
+.status-disconnected .connection-dot {
+    background-color: #ef4444;
+    box-shadow: 0 0 8px rgba(239, 68, 68, 0.4);
 }
 
-.status-connected {
-    background: rgba(16, 185, 129, 0.1);
-    border-color: rgba(16, 185, 129, 0.3);
-}
-
-.status-disconnected .connection-icon {
-    color: #ef4444;
-    animation: pulse-disconnected 2s infinite;
-}
-
-@keyframes pulse-disconnected {
-    0%, 100% {
-        transform: scale(1);
-        opacity: 1;
-    }
-    50% {
-        transform: scale(1.2);
-        opacity: 0.8;
-    }
-}
-
-.status-disconnected {
-    background: rgba(239, 68, 68, 0.15);
-    border-color: rgba(239, 68, 68, 0.3);
-    box-shadow: 0 0 10px rgba(239, 68, 68, 0.3);
+/* Connecting state */
+.connection-indicator:not(.status-connected):not(.status-disconnected) .connection-dot {
+    background-color: #f59e0b;
+    box-shadow: 0 0 8px rgba(245, 158, 11, 0.4);
+    animation: pulse 1.5s ease-in-out infinite;
 }
 
 /* Logout Button */
