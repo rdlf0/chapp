@@ -22,11 +22,12 @@ type Client struct {
 
 // Hub manages all connected clients (server doesn't store private keys)
 type Hub struct {
-	Clients    map[*Client]bool
-	Broadcast  chan []byte
-	Register   chan *Client
-	Unregister chan *Client
-	Mutex      sync.RWMutex
+	Clients        map[*Client]bool
+	ConnectedUsers map[string]bool // Track connected users by username
+	Broadcast      chan []byte
+	Register       chan *Client
+	Unregister     chan *Client
+	Mutex          sync.RWMutex
 }
 
 // Session management
@@ -75,10 +76,11 @@ func (u *WebAuthnUser) WebAuthnCredentials() []webauthn.Credential {
 // NewHub creates a new hub instance
 func NewHub() *Hub {
 	return &Hub{
-		Clients:    make(map[*Client]bool),
-		Broadcast:  make(chan []byte, 100),
-		Register:   make(chan *Client, 10),
-		Unregister: make(chan *Client, 10),
+		Clients:        make(map[*Client]bool),
+		ConnectedUsers: make(map[string]bool),
+		Broadcast:      make(chan []byte, 100),
+		Register:       make(chan *Client, 10),
+		Unregister:     make(chan *Client, 10),
 	}
 }
 
@@ -89,35 +91,56 @@ func (h *Hub) Run() {
 		case client := <-h.Register:
 			h.Mutex.Lock()
 			h.Clients[client] = true
+
+			// Check if this user is already connected (page refresh)
+			isNewUser := !h.ConnectedUsers[client.Username]
+			if isNewUser {
+				h.ConnectedUsers[client.Username] = true
+			}
 			h.Mutex.Unlock()
 
-			// Send welcome message (unencrypted system message)
-			welcomeMsg := types.Message{
-				Type:      types.MessageTypeSystem,
-				Content:   fmt.Sprintf("User %s joined the chat", client.Username),
-				Sender:    types.SystemSender,
-				Timestamp: time.Now().Unix(),
+			// Only send welcome message for new users (not page refreshes)
+			if isNewUser {
+				welcomeMsg := types.Message{
+					Type:      types.MessageTypeSystem,
+					Content:   fmt.Sprintf("User %s joined the chat", client.Username),
+					Sender:    types.SystemSender,
+					Timestamp: time.Now().Unix(),
+				}
+				welcomeBytes, _ := json.Marshal(welcomeMsg)
+				h.Broadcast <- welcomeBytes
 			}
-			welcomeBytes, _ := json.Marshal(welcomeMsg)
-			h.Broadcast <- welcomeBytes
 
 		case client := <-h.Unregister:
 			h.Mutex.Lock()
 			if _, ok := h.Clients[client]; ok {
 				delete(h.Clients, client)
 				close(client.Send)
+
+				// Check if this was the last connection for this user
+				userStillConnected := false
+				for c := range h.Clients {
+					if c.Username == client.Username {
+						userStillConnected = true
+						break
+					}
+				}
+
+				// Only send leave message if user is completely disconnected
+				if !userStillConnected {
+					delete(h.ConnectedUsers, client.Username)
+
+					leaveMsg := types.Message{
+						Type:      types.MessageTypeSystem,
+						Content:   fmt.Sprintf("User %s left the chat", client.Username),
+						Sender:    types.SystemSender,
+						Timestamp: time.Now().Unix(),
+					}
+					leaveBytes, _ := json.Marshal(leaveMsg)
+					h.Broadcast <- leaveBytes
+				}
 			}
 			h.Mutex.Unlock()
-
-			// Send leave message (unencrypted system message)
-			leaveMsg := types.Message{
-				Type:      types.MessageTypeSystem,
-				Content:   fmt.Sprintf("User %s left the chat", client.Username),
-				Sender:    types.SystemSender,
-				Timestamp: time.Now().Unix(),
-			}
-			leaveBytes, _ := json.Marshal(leaveMsg)
-			h.Broadcast <- leaveBytes
 
 		case message := <-h.Broadcast:
 			// Parse the message to get sender information

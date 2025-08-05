@@ -13,34 +13,23 @@ import (
 
 // ServeWs handles WebSocket requests from clients
 func ServeWs(hub *types.Hub, w http.ResponseWriter, r *http.Request) {
-	var username string
-	var isWebClient bool
-
-	// Check for session cookie first (web client)
+	// Check for session cookie (web client only)
 	cookie, err := r.Cookie(pkgtypes.SessionCookieName)
-	if err == nil && cookie.Value != "" {
-		// Web client with session
-		session := auth.GetSession(cookie.Value)
-		if session == nil {
-			log.Printf("WebSocket connection rejected: invalid session")
-			http.Error(w, "Unauthorized", http.StatusUnauthorized)
-			return
-		}
-		username = session.Username
-		isWebClient = true
-		log.Printf("Web client connecting: %s", username)
-
-	} else {
-		// CLI client with username parameter (for backward compatibility)
-		username = r.URL.Query().Get("username")
-		if username == "" {
-			log.Printf("WebSocket connection rejected: no session or username")
-			http.Error(w, "Unauthorized", http.StatusUnauthorized)
-			return
-		}
-		isWebClient = false
-		log.Printf("CLI client connecting: %s", username)
+	if err != nil || cookie.Value == "" {
+		log.Printf("WebSocket connection rejected: no session")
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
 	}
+
+	// Web client with session
+	session := auth.GetSession(cookie.Value)
+	if session == nil {
+		log.Printf("WebSocket connection rejected: invalid session")
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+	username := session.Username
+	log.Printf("Web client connecting: %s", username)
 
 	// Check if user is registered with passkey
 	user := auth.GetUser(username)
@@ -66,30 +55,23 @@ func ServeWs(hub *types.Hub, w http.ResponseWriter, r *http.Request) {
 
 	hub.Register <- client
 
-	// Send user info to client (only for web clients)
-	if isWebClient {
-		// Check if user is registered
-		user := auth.GetUser(username)
-		isRegistered := user != nil && user.IsRegistered
+	// Send user info to client
+	isRegistered := user != nil && user.IsRegistered
 
-		userInfoMsg := pkgtypes.Message{
-			Type:      pkgtypes.MessageTypeUserInfo,
-			Content:   username,
-			Sender:    pkgtypes.SystemSender,
-			Timestamp: time.Now().Unix(),
-		}
-		userInfoBytes, _ := json.Marshal(userInfoMsg)
-		client.Send <- userInfoBytes
+	userInfoMsg := pkgtypes.Message{
+		Type:      pkgtypes.MessageTypeUserInfo,
+		Content:   username,
+		Sender:    pkgtypes.SystemSender,
+		Timestamp: time.Now().Unix(),
+	}
+	userInfoBytes, _ := json.Marshal(userInfoMsg)
+	client.Send <- userInfoBytes
 
-		// Log connection with registration status
-		if isRegistered {
-			log.Printf("Web client connected: %s (registered)", username)
-		} else {
-			log.Printf("Web client connected: %s (guest)", username)
-		}
+	// Log connection with registration status
+	if isRegistered {
+		log.Printf("Web client connected: %s (registered)", username)
 	} else {
-		// CLI client - just log the connection
-		log.Printf("CLI client connected: %s", username)
+		log.Printf("Web client connected: %s (guest)", username)
 	}
 
 	// Start goroutines for reading and writing

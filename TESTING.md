@@ -24,29 +24,7 @@ This document describes the comprehensive test coverage for the Chapp applicatio
 - ✅ **`TestMessageTypes`** - Tests different message type handling
 - ✅ **`TestInvalidMessageHandling`** - Tests invalid message handling
 
-### **Client Tests (`client_test.go`)**
 
-#### **Cryptographic Tests:**
-- ✅ **`TestClientKeyGeneration`** - Tests RSA key pair generation
-- ✅ **`TestExportPublicKey`** - Tests public key export/import
-- ✅ **`TestEncryptionDecryption`** - Tests message encryption/decryption
-- ✅ **`TestInvalidKeyImport`** - Tests invalid key handling
-
-#### **Message Handling Tests:**
-- ✅ **`TestHandleMessage`** - Tests different message type processing
-- ✅ **`TestEncryptedMessageHandling`** - Tests encrypted message processing
-- ✅ **`TestMessageDeduplication`** - Tests message deduplication
-- ✅ **`TestMessageTimestampHandling`** - Tests timestamp handling
-- ✅ **`TestConcurrentMessageHandling`** - Tests concurrent message processing
-
-#### **Command Interface Tests:**
-- ✅ **`TestHandleSlashCommands`** - Tests slash command processing
-- ✅ **`TestListUsers`** - Tests user listing functionality
-- ✅ **`TestShowHelp`** - Tests help command functionality
-
-#### **Network Tests:**
-- ✅ **`TestKeySharing`** - Tests public key sharing (without WebSocket)
-- ✅ **`TestSendEncryptedMessage`** - Tests encrypted message sending (without WebSocket)
 
 ### **Web Client Tests (`web_test.go`)**
 
@@ -79,8 +57,7 @@ go test -v
 # Server tests only
 go test -v server_test.go server.go
 
-# Client tests only  
-go test -v client_test.go client.go
+
 
 # Web tests only
 go test -v web_test.go server.go
@@ -94,8 +71,7 @@ go test -v -run TestEncryptionDecryption
 # Run only WebSocket tests
 go test -v -run TestWebSocket
 
-# Run only slash command tests
-go test -v -run TestHandleSlashCommands
+
 ```
 
 ### **Run Tests with Coverage:**
@@ -114,7 +90,7 @@ go tool cover -html=coverage.out -o coverage.html
 - **Key Generation**: RSA key pair creation and validation
 - **Encryption/Decryption**: Message encryption and decryption
 - **Message Handling**: JSON serialization/deserialization
-- **Command Processing**: Slash command parsing and execution
+- **Message Processing**: JSON serialization/deserialization
 
 ### **2. Integration Tests**
 - **WebSocket Communication**: Client-server message exchange
@@ -137,27 +113,23 @@ go tool cover -html=coverage.out -o coverage.html
 ## 🔍 **Test Scenarios Covered**
 
 ### **Server Scenarios:**
-1. **Client Connection**: New client connects and registers
-2. **Message Broadcasting**: Server broadcasts messages to all clients
-3. **Client Disconnection**: Client disconnects and unregisters
-4. **Concurrent Connections**: Multiple clients connect simultaneously
+1. **Web Client Connection**: New web client connects and registers
+2. **Message Broadcasting**: Server broadcasts messages to all web clients
+3. **Web Client Disconnection**: Web client disconnects and unregisters
+4. **Concurrent Connections**: Multiple web clients connect simultaneously
 5. **Invalid Messages**: Server handles malformed JSON gracefully
 6. **Static File Serving**: CSS and JS files served with correct types
 
-### **Client Scenarios:**
-1. **Key Generation**: Client generates RSA key pair
-2. **Key Exchange**: Client exports and imports public keys
-3. **Message Encryption**: Client encrypts messages for recipients
-4. **Message Decryption**: Client decrypts messages from senders
-5. **Slash Commands**: Client processes `/quit`, `/h`, `/list users`
-6. **Message Deduplication**: Client ignores duplicate messages
-7. **Timestamp Handling**: Client processes messages with various timestamps
-
 ### **Web Client Scenarios:**
-1. **HTML Structure**: Page contains all required elements
-2. **Static Resources**: CSS and JS files load correctly
-3. **WebSocket Endpoint**: WebSocket connection endpoint accessible
-4. **Error Handling**: Invalid requests return appropriate errors
+1. **Key Generation**: Web client generates RSA key pair
+2. **Key Exchange**: Web client exports and imports public keys
+3. **Message Encryption**: Web client encrypts messages for recipients
+4. **Message Decryption**: Web client decrypts messages from senders
+5. **Message Processing**: Web client processes different message types
+6. **Message Deduplication**: Web client ignores duplicate messages
+7. **Timestamp Handling**: Web client processes messages with various timestamps
+
+
 
 ## 🛡️ **Security Testing**
 
@@ -212,12 +184,7 @@ go tool cover -html=coverage.out -o coverage.html
 }
 ```
 
-### **Sample Test Commands:**
-- `/quit` - Exit client
-- `/q` - Short exit command
-- `/h` - Show help
-- `/help` - Long help command
-- `/list users` - Show connected users
+
 
 ## 🔧 **Test Configuration**
 

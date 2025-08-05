@@ -34,7 +34,6 @@ func main() {
 	http.HandleFunc("/login", handlers.ServeLogin)
 	http.HandleFunc("/register", handlers.ServeRegister)
 	http.HandleFunc("/logout", handlers.ServeLogout)
-	http.HandleFunc("/cli-auth", handlers.ServeCLIAuth) // Add the new CLI auth handler
 
 	// WebAuthn endpoints
 	http.HandleFunc("/webauthn/begin-registration", handlers.ServeWebAuthnBeginRegistration)

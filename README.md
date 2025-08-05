@@ -9,15 +9,14 @@ A **genuine end-to-end encrypted** chat application. This follows the actual Sig
 
 ### **Client-Side Security:**
 ```
-Client A: Generate Keys → Encrypt Message → Send to Server
-Client B: Receive Encrypted → Decrypt with Private Key → Read Message
+User A: Generate Keys → Encrypt Message → Send to Server
+User B: Receive Encrypted → Decrypt with Private Key → Read Message
 Server: Relay Encrypted Messages (Cannot Decrypt)
 ```
 
 ### **Authentication Flow:**
 ```
 Web Client: Login Form → WebAuthn Passkey → Session Cookie → WebSocket Connection
-CLI Client: Browser WebAuthn → Temp File → WebSocket Connection
 ```
 
 ### **Database Storage:**
@@ -31,12 +30,10 @@ Hybrid Approach: Database persistence + memory performance
 - ✅ **Client-side key generation** (RSA-2048)
 - ✅ **Client-side encryption** (Web Crypto API)
 - ✅ **Server cannot decrypt** messages
-- ✅ **Public key exchange** between clients
+- ✅ **Public key exchange** between users
 - ✅ **True end-to-end** encryption
 - ✅ **Zero-knowledge server** (server is untrusted)
-- ✅ **WebAuthn passkey authentication** for all clients
-- ✅ **Session-based authentication** for web clients
-- ✅ **Secure CLI authentication** with no manual entry fallback
+- ✅ **WebAuthn passkey authentication** with session management
 - ✅ **SQLite database** for persistent storage
 - ✅ **Hybrid storage** (database + memory cache)
 - ✅ **Modular code structure** for maintainability
@@ -56,65 +53,17 @@ CGO_ENABLED=1 go build -o bin/server cmd/server/server.go
 
 **Note:** The server now uses SQLite for persistent storage. The database file `chapp.db` will be created automatically on first run.
 
-### **2. Connect a Client:**
+### **2. Connect:**
 
 **Web Interface:**
 - Open `http://localhost:8080` in your browser
-- Login with your username on the login page
-- The client generates its own keys
+- Register or login with your passkey
+- The web client generates its own keys
 - Public keys are automatically shared
 
-**Command Line:**
-```bash
-# Build the client
-CGO_ENABLED=1 go build -o bin/client cmd/client/client.go
+**🔄 Automatic Reconnection:** The web client automatically reconnects if the server goes down, with exponential backoff to prevent overwhelming the server during recovery.
 
-# Run the client
-./bin/client
-```
 
-### **CLI Slash Commands:**
-The command-line client supports the following slash commands:
-
-| Command | Description |
-|---------|-------------|
-| `/h` or `/help` | Show help message with available commands |
-| `/quit` or `/q` | Exit the client cleanly |
-| `/list users` | Display all connected users with their public keys |
-
-**Example CLI Usage:**
-```bash
-=== CHAPP CLI AUTHENTICATION ===
-Opening browser for secure passkey authentication...
-Browser opened! Please complete authentication in your browser.
-After successful login, you'll be redirected back to the CLI.
-
-Waiting for authentication...
-
-=== CHAPP - E2E ENCRYPTED CHAT ===
-Connected as: Alice
-Your Public Key:
-  MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA...
-Type your message or /h for help
-==================================
-
-> /h
-=== Available Commands ===
-• /h, /help     - Show this help message
-• /q, /quit     - Exit the client
-• /list users   - Show all connected users
-=======================
-
-> /list users
-=== Connected Users ===
-• Alice (you)
-• Bob (key: MIIBIjANBgkqhkiG9w0BAQEF...)
-• Charlie (key: MIIBIjANBgkqhkiG9w0BAQEF...)
-=====================
-
-> /quit
-Disconnecting...
-```
 
 
 
@@ -138,18 +87,7 @@ chapp/
 │   │   │   └── websocket_handlers.go    # WebSocket handling
 │   │   └── types/
 │   │       └── server_types.go          # Server-specific types
-│   └── client/
-│       ├── client.go                    # Main client entry point
-│       ├── auth/
-│       │   └── auth.go                  # CLI authentication
-│       ├── crypto/
-│       │   ├── keys.go                  # Key generation/import/export
-│       │   └── encryption.go            # Message encryption/decryption
-│       ├── messaging/
-│       │   ├── message_handler.go       # Message processing
-│       │   └── commands.go              # CLI command handling
-│       └── utils/
-│           └── helpers.go               # Utility functions
+
 ├── pkg/
 │   ├── database/
 │   │   ├── interface.go                 # Database interface
@@ -183,7 +121,7 @@ chapp/
 
 ### **1. Client-Side Key Generation:**
 ```javascript
-// Each client generates their own RSA key pair
+// Each user generates their own RSA key pair
 myKeyPair = await crypto.subtle.generateKey(
     {
         name: "RSA-OAEP",
@@ -219,90 +157,25 @@ const decrypted = await crypto.subtle.decrypt(
 ## 🛡️ **Security Model**
 
 ### **Perfect Forward Secrecy Design:**
-- Each client has unique RSA key pair
+- Each user has unique RSA key pair
 - Messages encrypted for each recipient individually
 - Server has no access to private keys
 - Compromised server cannot read messages
 
 ### **Authentication Model:**
-- **Web Clients**: WebAuthn passkey authentication with session cookies
-- **CLI Clients**: WebAuthn passkey authentication via browser (no manual entry)
+- **WebAuthn passkey authentication** with session cookies
 - **Session Management**: Server-side session storage with automatic cleanup
-- **Security**: No authentication bypass - passkey required for all clients
+- **Security**: No authentication bypass - passkey required
 
 ### **Message Flow:**
-1. **Client A** generates RSA key pair
-2. **Client A** shares public key with other clients
-3. **Client A** encrypts message with each recipient's public key
+1. **User A** generates RSA key pair
+2. **User A** shares public key with other users
+3. **User A** encrypts message with each recipient's public key
 4. **Server** receives encrypted messages (cannot decrypt)
-5. **Server** broadcasts encrypted messages to all clients
-6. **Client B** decrypts message with their private key
+5. **Server** broadcasts encrypted messages to all connected users
+6. **User B** decrypts message with their private key
 
-## 🔍 **Message Types**
 
-### **Shared Message Structure:**
-```go
-type Message struct {
-    Type      string `json:"type"`
-    Content   string `json:"content"`
-    Sender    string `json:"sender"`
-    Recipient string `json:"recipient,omitempty"`
-    Timestamp int64  `json:"timestamp"`
-}
-```
-
-### **Message Type Constants:**
-```go
-const (
-    MessageTypeSystem         = "system"
-    MessageTypeEncrypted      = "encrypted_message"
-    MessageTypePublicKeyShare = "public_key_share"
-    MessageTypeRequestKeys    = "request_keys"
-    MessageTypeUserInfo       = "user_info"
-    MessageTypeKeyExchange    = "key_exchange"
-)
-```
-
-### **1. Public Key Share:**
-```json
-{
-  "type": "public_key_share",
-  "content": "My public key",
-  "sender": "Alice",
-  "timestamp": 1234567890
-}
-```
-
-### **2. Encrypted Message:**
-```json
-{
-  "type": "encrypted_message",
-  "content": "base64_encrypted_content",
-  "sender": "Alice",
-  "recipient": "Bob",
-  "timestamp": 1234567890
-}
-```
-
-### **3. System Message:**
-```json
-{
-  "type": "system",
-  "content": "User joined/left",
-  "sender": "System",
-  "timestamp": 1234567890
-}
-```
-
-### **4. User Info Message:**
-```json
-{
-  "type": "user_info",
-  "content": "Alice",
-  "sender": "System",
-  "timestamp": 1234567890
-}
-```
 
 
 
@@ -315,7 +188,7 @@ const (
 - **Backup Support**: Database can be backed up and restored
 
 ### **Database Management Tool:**
-```bash
+   ```bash
 # Show database statistics
 CGO_ENABLED=1 go run scripts/db_manage.go -stats
 
@@ -329,39 +202,7 @@ CGO_ENABLED=1 go run scripts/db_manage.go -backup backup.db
 CGO_ENABLED=1 go run scripts/db_manage.go
 ```
 
-### **Database Schema:**
-```sql
--- Users table
-CREATE TABLE users (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    username TEXT UNIQUE NOT NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    last_login TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    passkey_id TEXT,
-    public_key TEXT,
-    is_registered BOOLEAN DEFAULT FALSE
-);
 
--- Sessions table
-CREATE TABLE sessions (
-    id TEXT PRIMARY KEY,
-    user_id INTEGER NOT NULL,
-    username TEXT NOT NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    expires_at TIMESTAMP DEFAULT (datetime('now', '+24 hours')),
-    FOREIGN KEY (user_id) REFERENCES users (id)
-);
-
--- WebAuthn credentials table
-CREATE TABLE webauthn_credentials (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    user_id INTEGER NOT NULL,
-    credential_id TEXT UNIQUE NOT NULL,
-    public_key TEXT NOT NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (user_id) REFERENCES users (id)
-);
-```
 
 ## 🧪 **Testing**
 ```bash
@@ -371,9 +212,6 @@ CGO_ENABLED=1 go test ./...
 # Run specific test suites
 CGO_ENABLED=1 go test ./cmd/server/auth
 CGO_ENABLED=1 go test ./cmd/server/handlers
-CGO_ENABLED=1 go test ./cmd/client/crypto
-CGO_ENABLED=1 go test ./cmd/client/messaging
-CGO_ENABLED=1 go test ./cmd/client/utils
 CGO_ENABLED=1 go test ./pkg/database
 ```
 
@@ -390,9 +228,6 @@ go tool cover -func=coverage.out
 ```
 
 **Current Coverage:**
-- **`cmd/client/crypto`**: 85.2% - Excellent cryptography coverage
-- **`cmd/client/messaging`**: 24.1% - Good command handling coverage
-- **`cmd/client/utils`**: 30.0% - Basic utility coverage
 - **`cmd/server/auth`**: 24.6% - Good session management coverage
 - **`cmd/server/handlers`**: 15.3% - Basic HTTP handler coverage
 - **`pkg/database`**: 100% - Complete database functionality coverage
@@ -422,10 +257,9 @@ go tool cover -func=coverage.out
 - **Base64**: Encoded message transmission
 
 ### **Authentication Methods:**
-- **Web Clients**: WebAuthn passkey with HTTP-only session cookies
-- **CLI Clients**: WebAuthn passkey via browser (no manual entry)
+- **WebAuthn passkey** with HTTP-only session cookies
 - **Session Management**: Server-side with automatic cleanup
-- **Security**: Strict passkey-only authentication for all clients
+- **Security**: Strict passkey-only authentication
 
 ### **Browser Compatibility:**
 - **Chrome/Edge**: Full support
@@ -454,4 +288,3 @@ For production use:
 - **Rate limiting** and DoS protection
 - **Audit logging** for security events
 
- 

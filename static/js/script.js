@@ -8,24 +8,35 @@ const MESSAGE_TYPES = {
     LOCAL: 'local_message' // For local display only
 };
 
-let ws;
-let username;
-let myKeyPair = null;
+// Global variables
+let ws = null;
+let username = "Loading...";
+let privateKey = null;
+let publicKey = null;
+let otherClients = new Map(); // Map of clientID -> {username, publicKey}
+let reconnectAttempts = 0;
+let maxReconnectAttempts = 10;
+let reconnectDelay = 1000; // Start with 1 second
+let reconnectTimer = null;
+let isReconnecting = false;
 
-// Update the page title to show current user
-function updateTitle() {
-    if (username) {
-        document.title = `Chapp - ${username}`;
-    } else {
-        document.title = 'Chapp - E2E Chat';
-    }
-}
-let otherClients = new Map(); // clientID -> publicKey
+let myKeyPair = null;
 let isKeyGenerated = false;
 let hasSharedKey = false; // Prevent infinite loop
 let lastJoinedUser = null; // Track last user who joined
 let needToShareBack = false; // Flag to share back when receiving a new key
 let justSharedKey = false; // Track if we just shared our key recently
+
+// Update the page title to show current user
+function updateTitle() {
+    if (username && username !== "Loading...") {
+        document.title = `Chapp - ${username}`;
+    } else if (username === "Loading...") {
+        document.title = 'Chapp - Connecting...';
+    } else {
+        document.title = 'Chapp - E2E Chat';
+    }
+}
 
 // Generate cryptographic keys on client side
 async function generateKeyPair() {
@@ -179,7 +190,10 @@ async function sharePublicKey() {
     // AND if we haven't just shared our key recently
     const canShare = (!hasSharedKey || needToShareBack) && !justSharedKey;
     
-    if (ws && ws.readyState === WebSocket.OPEN && isKeyGenerated && canShare) {
+    // Force sharing if we're responding to a REQUEST_KEYS (needToShareBack is true)
+    const forceShare = needToShareBack;
+    
+    if (ws && ws.readyState === WebSocket.OPEN && isKeyGenerated && (canShare || forceShare)) {
         const publicKey = await exportPublicKey();
         if (publicKey) {
             const keyShareMsg = {
@@ -211,20 +225,22 @@ function updateClientsList() {
     const clientsList = document.getElementById('clientsList');
     clientsList.innerHTML = '';
     
-    // Add current user first
-    const currentUserItem = document.createElement('div');
-    currentUserItem.className = 'client-item';
-    currentUserItem.innerHTML = `
-        <span class="client-username">${username} (you)</span>
-        <span class="lock-icon" title="Your Public Key (Click to copy)" onclick="copyMyPublicKey()">🔒</span>
-    `;
-    clientsList.appendChild(currentUserItem);
+    // Add current user first (only if we have a real username)
+    if (username && username !== "Loading...") {
+        const currentUserItem = document.createElement('div');
+        currentUserItem.className = 'client-item';
+        currentUserItem.innerHTML = `
+            <span class="client-username">${username} (you)</span>
+            <span class="lock-icon" title="Your Public Key (Click to copy)" onclick="copyMyPublicKey()">🔒</span>
+        `;
+        clientsList.appendChild(currentUserItem);
+    }
     
     // Collect and sort other clients alphabetically
     const sortedClients = Array.from(otherClients.keys()).sort((a, b) => a.localeCompare(b));
     for (const clientID of sortedClients) {
         const publicKey = otherClients.get(clientID);
-        if (clientID === username) continue; // skip self if present
+        if (clientID === username || clientID === "Loading...") continue; // skip self and Loading... if present
         const clientItem = document.createElement('div');
         clientItem.className = 'client-item';
         clientItem.innerHTML = `
@@ -302,7 +318,7 @@ async function displayMessage(message) {
 
     } else if (message.type === MESSAGE_TYPES.PUBLIC_KEY_SHARE) {
         // Store the client's public key silently
-        if (message.content && message.sender !== username) {
+        if (message.content && message.sender !== username && message.sender !== "Loading...") {
             // Check if we already have this client's key before storing
             const alreadyHaveKey = otherClients.has(message.sender);
             
@@ -326,6 +342,8 @@ async function displayMessage(message) {
     } else if (message.type === MESSAGE_TYPES.REQUEST_KEYS) {
         // Another client is requesting our public key
         if (message.sender !== username && isKeyGenerated) {
+            // Force sharing by setting needToShareBack flag
+            needToShareBack = true;
             // Share our public key with the requesting client
             setTimeout(() => sharePublicKey(), 100);
         }
@@ -457,6 +475,15 @@ function connect() {
             document.getElementById('sendButton').disabled = false;
             document.getElementById('messageInput').focus();
             
+            // Reset reconnection state on successful connection
+            reconnectAttempts = 0;
+            reconnectDelay = 1000;
+            isReconnecting = false;
+            if (reconnectTimer) {
+                clearTimeout(reconnectTimer);
+                reconnectTimer = null;
+            }
+            
             // Update clients list to show current user
             updateClientsList();
             
@@ -466,11 +493,11 @@ function connect() {
             // Also request existing clients to share their keys
             setTimeout(() => {
                 if (ws && ws.readyState === WebSocket.OPEN) {
-                                const requestMsg = {
-                type: MESSAGE_TYPES.REQUEST_KEYS,
-                sender: username,
-                timestamp: Math.floor(Date.now() / 1000)
-            };
+                    const requestMsg = {
+                        type: MESSAGE_TYPES.REQUEST_KEYS,
+                        sender: username,
+                        timestamp: Math.floor(Date.now() / 1000)
+                    };
                     ws.send(JSON.stringify(requestMsg));
                 }
             }, 500); // Small delay to ensure connection is stable
@@ -490,12 +517,17 @@ function connect() {
             displayMessage(message);
         };
         
-        ws.onclose = function() {
+        ws.onclose = function(event) {
             const connectionStatus = document.getElementById('connectionStatus');
             connectionStatus.querySelector('.connection-text').textContent = 'Disconnected';
             connectionStatus.className = 'connection-indicator status-disconnected';
             document.getElementById('messageInput').disabled = true;
             document.getElementById('sendButton').disabled = true;
+            
+            // Attempt reconnection if not already reconnecting and not a normal closure
+            if (!isReconnecting && event.code !== 1000) {
+                attemptReconnection();
+            }
         };
         
         ws.onerror = function(error) {
@@ -505,6 +537,34 @@ function connect() {
             document.getElementById('sendButton').disabled = true;
         };
     });
+}
+
+function attemptReconnection() {
+    if (isReconnecting || reconnectAttempts >= maxReconnectAttempts) {
+        if (reconnectAttempts >= maxReconnectAttempts) {
+            console.error('Max reconnection attempts reached. Please refresh the page.');
+            const connectionStatus = document.getElementById('connectionStatus');
+            connectionStatus.querySelector('.connection-text').textContent = 'Connection failed';
+        }
+        return;
+    }
+    
+    isReconnecting = true;
+    reconnectAttempts++;
+    
+    const connectionStatus = document.getElementById('connectionStatus');
+    connectionStatus.querySelector('.connection-text').textContent = `Connecting...`;
+    connectionStatus.className = 'connection-indicator';
+    
+
+    
+    reconnectTimer = setTimeout(() => {
+        isReconnecting = false;
+        connect();
+        
+        // Exponential backoff with max delay of 30 seconds
+        reconnectDelay = Math.min(reconnectDelay * 1.5, 30000);
+    }, reconnectDelay);
 }
 
 // Event listeners

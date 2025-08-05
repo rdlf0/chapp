@@ -166,25 +166,10 @@ document.addEventListener('DOMContentLoaded', function() {
             const result = await webauthnClient.login();
             hideLoading(passkeyLoginBtn);
             
-            // Check if this is a CLI authentication request
-            const urlParams = new URLSearchParams(window.location.search);
-            const isCLI = urlParams.get('cli') === 'true';
-            
-            if (isCLI) {
-                // For CLI authentication, handle the redirect response
-                console.log('CLI authentication successful');
-                
-                // If we got a redirect response, follow it
-                if (result && result.status === 'redirect') {
-                    console.log('Following redirect to:', result.redirect);
-                    window.location.href = result.redirect;
-                }
-            } else {
-                // Redirect to chat after successful login
-                setTimeout(() => {
-                    window.location.href = '/';
-                }, 1000);
-            }
+            // Redirect to chat after successful login
+            setTimeout(() => {
+                window.location.href = '/';
+            }, 1000);
             
         } catch (error) {
             hideLoading(passkeyLoginBtn);
