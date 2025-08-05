@@ -461,9 +461,9 @@ function connect() {
     
     // Generate keys first
     generateKeyPair().then(() => {
-        // Connect to WebSocket (session will be sent via cookies)
+        // Connect to WebSocket server on port 8081
         const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-        const wsUrl = `${protocol}//${window.location.host}/ws`;
+        const wsUrl = `${protocol}//${window.location.hostname}:8081/ws`;
         
         ws = new WebSocket(wsUrl);
         

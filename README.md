@@ -42,16 +42,24 @@ Hybrid Approach: Database persistence + memory performance
 
 ## 🚀 **How to Run**
 
-### **1. Build and Start Chapp Server:**
+### **1. Build and Start Chapp Servers:**
 ```bash
-# Build the server (requires CGO for SQLite)
-CGO_ENABLED=1 go build -o bin/server cmd/server/server.go
+# Build both servers (requires CGO for SQLite)
+CGO_ENABLED=1 go build -o bin/static-server cmd/server/static/main.go
+CGO_ENABLED=1 go build -o bin/websocket-server cmd/server/websocket/main.go
 
-# Run the server
-./bin/server
+# Run static server (authentication, pages, static files)
+./bin/static-server
+
+# Run WebSocket server (real-time messaging)
+./bin/websocket-server
 ```
 
-**Note:** The server now uses SQLite for persistent storage. The database file `chapp.db` will be created automatically on first run.
+**Note:** The servers are now completely independent:
+- **Static Server (Port 8080)**: Authentication, pages, and static files
+- **WebSocket Server (Port 8081)**: Real-time messaging only
+
+The database file `chapp.db` will be created automatically on first run.
 
 ### **2. Connect:**
 
@@ -75,7 +83,10 @@ CGO_ENABLED=1 go build -o bin/server cmd/server/server.go
 chapp/
 ├── cmd/
 │   ├── server/
-│   │   ├── server.go                    # Main server entry point
+│   │   ├── static/
+│   │   │   └── main.go                  # Static server entry point
+│   │   ├── websocket/
+│   │   │   └── main.go                  # WebSocket server entry point
 │   │   ├── auth/
 │   │   │   ├── session.go               # Session management
 │   │   │   ├── user.go                  # User management
@@ -116,6 +127,19 @@ chapp/
 ├── go.mod                               # Go module dependencies
 └── go.sum                               # Dependency checksums
 ```
+
+## 🏗️ **Architecture**
+
+### **Split Server Design:**
+- **Static Server (Port 8080)**: Handles authentication, login/logout, and static files
+- **WebSocket Server (Port 8081)**: Handles real-time messaging and chat functionality
+
+### **Benefits:**
+- **Fault Tolerance**: WebSocket failure doesn't break authentication
+- **Better UX**: Users can still login/logout when chat is down
+- **Independent Scaling**: Can scale static and WebSocket servers separately
+- **Clear Separation**: Authentication and messaging are logically separated
+- **Horizontal Scaling**: Can run multiple WebSocket servers behind a load balancer
 
 ## 🔑 **Cryptographic Implementation**
 
@@ -259,7 +283,15 @@ go tool cover -func=coverage.out
 ### **Authentication Methods:**
 - **WebAuthn passkey** with HTTP-only session cookies
 - **Session Management**: Server-side with automatic cleanup
+- **Session Expiration**: 24-hour automatic expiration with hourly cleanup
 - **Security**: Strict passkey-only authentication
+
+### **Session Management:**
+- **Session Duration**: 24 hours from creation
+- **Automatic Cleanup**: Hourly background cleanup of expired sessions
+- **Database Persistence**: Sessions survive server restarts
+- **Memory Caching**: Fast session lookups with database fallback
+- **Secure Cookies**: HTTP-only cookies prevent XSS attacks
 
 ### **Browser Compatibility:**
 - **Chrome/Edge**: Full support
@@ -279,12 +311,5 @@ go tool cover -func=coverage.out
 - **Web Crypto API**: https://developer.mozilla.org/en-US/docs/Web/API/Web_Crypto_API
 - **RSA-OAEP**: https://en.wikipedia.org/wiki/Optimal_asymmetric_encryption_padding
 
-## 🔐 **Production Deployment**
 
-For production use:
-- **HTTPS/WSS** for transport security
-- **Key rotation** for perfect forward secrecy
-- **Message verification** with digital signatures
-- **Rate limiting** and DoS protection
-- **Audit logging** for security events
 

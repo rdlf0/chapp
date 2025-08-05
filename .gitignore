@@ -49,9 +49,6 @@ dist/
 
 # Go build outputs (compiled binaries)
 bin/
-chapp
-server
-client
 
 # Coverage reports
 coverage.txt
