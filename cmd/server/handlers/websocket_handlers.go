@@ -14,6 +14,7 @@ import (
 // ServeWs handles WebSocket requests from clients
 func ServeWs(hub *types.Hub, w http.ResponseWriter, r *http.Request) {
 	var username string
+	var isWebClient bool
 
 	// Check for session cookie first (web client)
 	cookie, err := r.Cookie(pkgtypes.SessionCookieName)
@@ -26,6 +27,9 @@ func ServeWs(hub *types.Hub, w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		username = session.Username
+		isWebClient = true
+		log.Printf("Web client connecting: %s", username)
+
 	} else {
 		// CLI client with username parameter (for backward compatibility)
 		username = r.URL.Query().Get("username")
@@ -34,6 +38,8 @@ func ServeWs(hub *types.Hub, w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "Unauthorized", http.StatusUnauthorized)
 			return
 		}
+		isWebClient = false
+		log.Printf("CLI client connecting: %s", username)
 	}
 
 	// Check if user is registered with passkey
@@ -61,7 +67,7 @@ func ServeWs(hub *types.Hub, w http.ResponseWriter, r *http.Request) {
 	hub.Register <- client
 
 	// Send user info to client (only for web clients)
-	if cookie != nil && cookie.Value != "" {
+	if isWebClient {
 		// Check if user is registered
 		user := auth.GetUser(username)
 		isRegistered := user != nil && user.IsRegistered
@@ -77,10 +83,13 @@ func ServeWs(hub *types.Hub, w http.ResponseWriter, r *http.Request) {
 
 		// Log connection with registration status
 		if isRegistered {
-			log.Printf("Registered user connected: %s", username)
+			log.Printf("Web client connected: %s (registered)", username)
 		} else {
-			log.Printf("Guest user connected: %s", username)
+			log.Printf("Web client connected: %s (guest)", username)
 		}
+	} else {
+		// CLI client - just log the connection
+		log.Printf("CLI client connected: %s", username)
 	}
 
 	// Start goroutines for reading and writing

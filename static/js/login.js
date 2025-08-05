@@ -171,8 +171,14 @@ document.addEventListener('DOMContentLoaded', function() {
             const isCLI = urlParams.get('cli') === 'true';
             
             if (isCLI) {
-                // Redirect to CLI auth success page
-                window.location.href = '/cli-auth';
+                // For CLI authentication, handle the redirect response
+                console.log('CLI authentication successful');
+                
+                // If we got a redirect response, follow it
+                if (result && result.status === 'redirect') {
+                    console.log('Following redirect to:', result.redirect);
+                    window.location.href = result.redirect;
+                }
             } else {
                 // Redirect to chat after successful login
                 setTimeout(() => {

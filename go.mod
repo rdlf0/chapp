@@ -8,6 +8,7 @@ require (
 	github.com/chzyer/readline v1.5.1
 	github.com/go-webauthn/webauthn v0.13.4
 	github.com/gorilla/websocket v1.5.1
+	github.com/mattn/go-sqlite3 v1.14.30
 )
 
 require (

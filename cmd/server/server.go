@@ -7,9 +7,20 @@ import (
 	"chapp/cmd/server/auth"
 	"chapp/cmd/server/handlers"
 	"chapp/cmd/server/types"
+	"chapp/pkg/database"
 )
 
 func main() {
+	// Initialize database
+	db, err := database.NewSQLite("chapp.db")
+	if err != nil {
+		log.Fatal("Failed to initialize database:", err)
+	}
+	defer db.Close()
+
+	// Set global database instance
+	database.SetDatabase(db)
+
 	// Initialize WebAuthn
 	auth.InitializeWebAuthn()
 
@@ -41,7 +52,7 @@ func main() {
 
 	log.Println("Chapp server starting on :8080")
 
-	err := http.ListenAndServe(":8080", nil)
+	err = http.ListenAndServe(":8080", nil)
 	if err != nil {
 		log.Fatal("ListenAndServe: ", err)
 	}

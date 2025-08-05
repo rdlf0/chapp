@@ -110,19 +110,11 @@ func AuthenticateUser() (string, error) {
 
 	// Wait for user to complete authentication
 	fmt.Println("Waiting for authentication...")
-	fmt.Println("(You can also manually enter your username below if needed)")
-	fmt.Println()
 
-	// Try to get username from custom protocol (if supported)
+	// Try to get username from authentication callback
 	username := waitForProtocolCallback()
 	if username == "" {
-		// Fallback to manual input
-		fmt.Print("Enter your username (from browser authentication): ")
-		fmt.Scanln(&username)
-	}
-
-	if username == "" {
-		return "", fmt.Errorf("no username provided")
+		return "", fmt.Errorf("authentication timed out or failed. Please try again.")
 	}
 
 	fmt.Printf("Authenticated as: %s\n", username)

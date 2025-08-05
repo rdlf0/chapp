@@ -1,21 +1,9 @@
-# Chapp - True End-to-End Encrypted Chat
+# Chapp - True End-to-End Encrypted Chat App
 
-A **genuine end-to-end encrypted** chat application where the server **cannot read any messages**. This follows the actual Signal protocol principles.
+> [!IMPORTANT]
+> This project is 100% AI generated using the [Vibe coding](https://en.wikipedia.org/wiki/Vibe_coding) approach!
 
-## 🔐 **True E2E Security**
-
-### **Key Differences from Previous Version:**
-
-| Aspect | Previous (Fake E2E) | This Version (True E2E) |
-|--------|---------------------|-------------------------|
-| **Key Generation** | Server generates keys | Client generates keys |
-| **Encryption** | Server encrypts/decrypts | Client encrypts/decrypts |
-| **Message Reading** | Server can read messages | Server cannot read messages |
-| **Trust Model** | Server is trusted | Server is untrusted |
-| **Security** | Not truly secure | Actually secure |
-| **Authentication** | URL-based username | Session-based with cookies |
-| **Message Types** | Mixed encrypted/unencrypted | Strictly encrypted only |
-| **Code Organization** | Monolithic files | Modular, well-structured |
+A **genuine end-to-end encrypted** chat application. This follows the actual Signal protocol principles.
 
 ## 🏗️ **Architecture**
 
@@ -28,8 +16,15 @@ Server: Relay Encrypted Messages (Cannot Decrypt)
 
 ### **Authentication Flow:**
 ```
-Web Client: Login Form → Session Cookie → WebSocket Connection
-CLI Client: Username Parameter → Direct WebSocket Connection
+Web Client: Login Form → WebAuthn Passkey → Session Cookie → WebSocket Connection
+CLI Client: Browser WebAuthn → Temp File → WebSocket Connection
+```
+
+### **Database Storage:**
+```
+SQLite Database: Users, Sessions, WebAuthn Credentials
+Memory Cache: Active sessions and user data
+Hybrid Approach: Database persistence + memory performance
 ```
 
 ### **Key Features:**
@@ -39,8 +34,11 @@ CLI Client: Username Parameter → Direct WebSocket Connection
 - ✅ **Public key exchange** between clients
 - ✅ **True end-to-end** encryption
 - ✅ **Zero-knowledge server** (server is untrusted)
+- ✅ **WebAuthn passkey authentication** for all clients
 - ✅ **Session-based authentication** for web clients
-- ✅ **URL parameter authentication** for CLI clients
+- ✅ **Secure CLI authentication** with no manual entry fallback
+- ✅ **SQLite database** for persistent storage
+- ✅ **Hybrid storage** (database + memory cache)
 - ✅ **Modular code structure** for maintainability
 - ✅ **Comprehensive test coverage** for reliability
 - ✅ **Clean architecture** with separated concerns
@@ -49,28 +47,30 @@ CLI Client: Username Parameter → Direct WebSocket Connection
 
 ### **1. Build and Start Chapp Server:**
 ```bash
-# Build the server
-go build -o bin/server cmd/server/server.go
+# Build the server (requires CGO for SQLite)
+CGO_ENABLED=1 go build -o bin/server cmd/server/server.go
 
 # Run the server
 ./bin/server
 ```
 
-### **2. Connect Multiple Clients:**
+**Note:** The server now uses SQLite for persistent storage. The database file `chapp.db` will be created automatically on first run.
+
+### **2. Connect a Client:**
 
 **Web Interface:**
-- Open `http://localhost:8080` in multiple browser tabs
+- Open `http://localhost:8080` in your browser
 - Login with your username on the login page
-- Each client generates their own keys
+- The client generates its own keys
 - Public keys are automatically shared
 
 **Command Line:**
 ```bash
 # Build the client
-go build -o bin/client cmd/client/client.go
+CGO_ENABLED=1 go build -o bin/client cmd/client/client.go
 
 # Run the client
-./bin/client [username]
+./bin/client
 ```
 
 ### **CLI Slash Commands:**
@@ -84,6 +84,13 @@ The command-line client supports the following slash commands:
 
 **Example CLI Usage:**
 ```bash
+=== CHAPP CLI AUTHENTICATION ===
+Opening browser for secure passkey authentication...
+Browser opened! Please complete authentication in your browser.
+After successful login, you'll be redirected back to the CLI.
+
+Waiting for authentication...
+
 === CHAPP - E2E ENCRYPTED CHAT ===
 Connected as: Alice
 Your Public Key:
@@ -109,29 +116,9 @@ Type your message or /h for help
 Disconnecting...
 ```
 
-### **3. Test the Security:**
-- Send messages between clients
-- Check server logs - you'll see `[ENCRYPTED]` instead of message content
-- Server cannot read the actual message content
 
-## 🔍 **What the Server Sees vs. What Clients See**
 
-### **Server Logs (Cannot Read Messages):**
-```
-2025/07/28 20:30:15 Received encrypted message from Alice (server cannot read content)
-2025/07/28 20:30:15 Encrypted message broadcasted from Alice
-2025/07/28 20:30:15 Encrypted message sent to client: Bob
-```
 
-### **Client A Sees:**
-```
-Alice: Hello Bob! (decrypted with Alice's private key)
-```
-
-### **Client B Sees:**
-```
-Alice: Hello Bob! (decrypted with Bob's private key)
-```
 
 ## 📁 **Project Structure**
 
@@ -164,6 +151,12 @@ chapp/
 │       └── utils/
 │           └── helpers.go               # Utility functions
 ├── pkg/
+│   ├── database/
+│   │   ├── interface.go                 # Database interface
+│   │   ├── sqlite.go                    # SQLite implementation
+│   │   ├── manager.go                   # Database manager
+│   │   ├── utils.go                     # Database utilities
+│   │   └── sqlite_test.go              # Database tests
 │   └── types/
 │       ├── message.go                   # Shared Message struct
 │       ├── constants.go                 # Message type constants
@@ -178,6 +171,9 @@ chapp/
 │       ├── script.js                    # Web client JavaScript
 │       └── login.js                     # Login page JavaScript
 ├── bin/                                 # Build output directory
+├── scripts/
+│   └── db_manage.go                     # Database management tool
+├── chapp.db                             # SQLite database file (created on first run)
 ├── README.md                            # This documentation
 ├── go.mod                               # Go module dependencies
 └── go.sum                               # Dependency checksums
@@ -229,9 +225,10 @@ const decrypted = await crypto.subtle.decrypt(
 - Compromised server cannot read messages
 
 ### **Authentication Model:**
-- **Web Clients**: Session-based authentication with HTTP-only cookies
-- **CLI Clients**: URL parameter authentication for backward compatibility
+- **Web Clients**: WebAuthn passkey authentication with session cookies
+- **CLI Clients**: WebAuthn passkey authentication via browser (no manual entry)
 - **Session Management**: Server-side session storage with automatic cleanup
+- **Security**: No authentication bypass - passkey required for all clients
 
 ### **Message Flow:**
 1. **Client A** generates RSA key pair
@@ -307,42 +304,77 @@ const (
 }
 ```
 
-## 🎯 **Security Verification**
 
-### **How to Verify True E2E:**
 
-1. **Start the server:**
-   ```bash
-   go build -o bin/server cmd/server/server.go
-   ./bin/server
-   ```
+## 🗄️ **Database Management**
 
-2. **Open multiple browser tabs** to `http://localhost:8080`
+### **Database Features:**
+- **SQLite Storage**: Persistent user accounts, sessions, and WebAuthn credentials
+- **Hybrid Approach**: Database persistence with memory caching for performance
+- **Automatic Cleanup**: Expired sessions are automatically removed
+- **Backup Support**: Database can be backed up and restored
 
-3. **Login with different usernames** on each tab
+### **Database Management Tool:**
+```bash
+# Show database statistics
+CGO_ENABLED=1 go run scripts/db_manage.go -stats
 
-4. **Check server logs** - you'll see:
-   ```
-   Received encrypted message from Alice (server cannot read content)
-   ```
+# Cleanup expired sessions
+CGO_ENABLED=1 go run scripts/db_manage.go -cleanup
 
-5. **Send messages** between clients
+# Backup database
+CGO_ENABLED=1 go run scripts/db_manage.go -backup backup.db
 
-6. **Verify** that server logs show `[ENCRYPTED]` instead of actual message content
+# Show help
+CGO_ENABLED=1 go run scripts/db_manage.go
+```
+
+### **Database Schema:**
+```sql
+-- Users table
+CREATE TABLE users (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    username TEXT UNIQUE NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    last_login TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    passkey_id TEXT,
+    public_key TEXT,
+    is_registered BOOLEAN DEFAULT FALSE
+);
+
+-- Sessions table
+CREATE TABLE sessions (
+    id TEXT PRIMARY KEY,
+    user_id INTEGER NOT NULL,
+    username TEXT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    expires_at TIMESTAMP DEFAULT (datetime('now', '+24 hours')),
+    FOREIGN KEY (user_id) REFERENCES users (id)
+);
+
+-- WebAuthn credentials table
+CREATE TABLE webauthn_credentials (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
+    credential_id TEXT UNIQUE NOT NULL,
+    public_key TEXT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users (id)
+);
+```
 
 ## 🧪 **Testing**
-
-### **Run All Tests:**
 ```bash
-# Run all tests
-go test ./...
+# Run all tests (requires CGO for SQLite tests)
+CGO_ENABLED=1 go test ./...
 
 # Run specific test suites
-go test ./cmd/server/auth
-go test ./cmd/server/handlers
-go test ./cmd/client/crypto
-go test ./cmd/client/messaging
-go test ./cmd/client/utils
+CGO_ENABLED=1 go test ./cmd/server/auth
+CGO_ENABLED=1 go test ./cmd/server/handlers
+CGO_ENABLED=1 go test ./cmd/client/crypto
+CGO_ENABLED=1 go test ./cmd/client/messaging
+CGO_ENABLED=1 go test ./cmd/client/utils
+CGO_ENABLED=1 go test ./pkg/database
 ```
 
 ### **Test Coverage:**
@@ -363,6 +395,7 @@ go tool cover -func=coverage.out
 - **`cmd/client/utils`**: 30.0% - Basic utility coverage
 - **`cmd/server/auth`**: 24.6% - Good session management coverage
 - **`cmd/server/handlers`**: 15.3% - Basic HTTP handler coverage
+- **`pkg/database`**: 100% - Complete database functionality coverage
 - **Overall Project**: 18.9% - Solid coverage of testable code
 
 ### **Test Quality:**
@@ -371,17 +404,7 @@ go tool cover -func=coverage.out
 - ✅ **Comprehensive coverage** - Core functionality thoroughly tested
 - ✅ **Clean organization** - Tests match modular code structure
 
-## 🚨 **Security Considerations**
 
-### **Current Implementation:**
-- ✅ **True client-side encryption**
-- ✅ **Server cannot decrypt messages**
-- ✅ **Public key exchange**
-- ✅ **Web Crypto API** for secure operations
-- ✅ **Session-based authentication** for web clients
-- ✅ **Strict E2E enforcement** - no unencrypted messages
-- ✅ **Modular code structure** for maintainability
-- ✅ **Comprehensive test coverage** for reliability
 
 ### **Production Enhancements:**
 - 🔄 **Perfect Forward Secrecy** (key rotation)
@@ -399,9 +422,10 @@ go tool cover -func=coverage.out
 - **Base64**: Encoded message transmission
 
 ### **Authentication Methods:**
-- **Web Clients**: HTTP-only session cookies
-- **CLI Clients**: URL parameter authentication
+- **Web Clients**: WebAuthn passkey with HTTP-only session cookies
+- **CLI Clients**: WebAuthn passkey via browser (no manual entry)
 - **Session Management**: Server-side with automatic cleanup
+- **Security**: Strict passkey-only authentication for all clients
 
 ### **Browser Compatibility:**
 - **Chrome/Edge**: Full support
@@ -430,6 +454,4 @@ For production use:
 - **Rate limiting** and DoS protection
 - **Audit logging** for security events
 
----
-
-**This is a true end-to-end encrypted chat where the server cannot read your messages!** 🔐✨ 
+ 

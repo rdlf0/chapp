@@ -8,6 +8,7 @@ import (
 
 	"chapp/cmd/server/auth"
 	"chapp/cmd/server/types"
+	"chapp/pkg/database"
 )
 
 // ServeWebAuthnBeginRegistration starts the WebAuthn registration process
@@ -113,6 +114,20 @@ func ServeWebAuthnFinishRegistration(w http.ResponseWriter, r *http.Request) {
 	user.PasskeyID = req.ID
 	types.UsersMutex.Unlock()
 
+	// Update user in database
+	db := database.GetDatabase()
+	if db != nil {
+		// Update passkey ID
+		if err := db.UpdateUserPasskeyID(username, req.ID); err != nil {
+			log.Printf("Failed to update passkey ID in database: %v", err)
+		}
+
+		// Mark user as registered
+		if err := db.SetUserRegistered(username, true); err != nil {
+			log.Printf("Failed to set user as registered in database: %v", err)
+		}
+	}
+
 	log.Printf("WebAuthn registration completed for user: %s", username)
 
 	w.Header().Set("Content-Type", "application/json")
@@ -191,23 +206,38 @@ func ServeWebAuthnFinishLogin(w http.ResponseWriter, r *http.Request) {
 	// In production, you'd validate the actual credential
 	auth.UpdateUserLastLogin(authenticatedUser.Username)
 
-	// Create session and set cookie
-	sessionID := auth.CreateSession(authenticatedUser.Username)
-	http.SetCookie(w, &http.Cookie{
-		Name:     "chapp_session",
-		Value:    sessionID,
-		Path:     "/",
-		HttpOnly: true,
-		MaxAge:   86400, // 24 hours
-	})
+	// Check if this is a CLI authentication request
+	isCLI := r.URL.Query().Get("cli") == "true"
+	log.Printf("WebAuthn login - CLI parameter: %v, User: %s", isCLI, authenticatedUser.Username)
 
-	log.Printf("WebAuthn login completed for user: %s", authenticatedUser.Username)
+	if !isCLI {
+		// Only create session for web clients, not CLI clients
+		sessionID := auth.CreateSession(authenticatedUser.Username)
+		http.SetCookie(w, &http.Cookie{
+			Name:     "chapp_session",
+			Value:    sessionID,
+			Path:     "/",
+			HttpOnly: true,
+			MaxAge:   86400, // 24 hours
+		})
+		log.Printf("WebAuthn login completed for user: %s (web client)", authenticatedUser.Username)
+	} else {
+		log.Printf("WebAuthn login completed for user: %s (CLI client)", authenticatedUser.Username)
+	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]string{
-		"status":   "success",
-		"username": authenticatedUser.Username,
-	})
+	if isCLI {
+		// For CLI authentication, return JSON with redirect URL
+		json.NewEncoder(w).Encode(map[string]string{
+			"status":   "redirect",
+			"redirect": "/cli-auth?username=" + authenticatedUser.Username,
+		})
+	} else {
+		// For web authentication, return JSON response
+		json.NewEncoder(w).Encode(map[string]string{
+			"status":   "success",
+			"username": authenticatedUser.Username,
+		})
+	}
 }
 
 // min returns the minimum of two integers

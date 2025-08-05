@@ -132,7 +132,11 @@ class WebAuthnClient {
     // Begin passkey authentication
     async beginLogin() {
         try {
-            const response = await fetch(`${this.baseURL}/webauthn/begin-login`, {
+            // Check if this is a CLI authentication request
+            const urlParams = new URLSearchParams(window.location.search);
+            const isCLI = urlParams.get('cli') === 'true';
+            
+            const response = await fetch(`${this.baseURL}/webauthn/begin-login?cli=${isCLI}`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -164,7 +168,11 @@ class WebAuthnClient {
     // Finish passkey authentication
     async finishLogin(assertion) {
         try {
-            const response = await fetch(`${this.baseURL}/webauthn/finish-login`, {
+            // Check if this is a CLI authentication request
+            const urlParams = new URLSearchParams(window.location.search);
+            const isCLI = urlParams.get('cli') === 'true';
+            
+            const response = await fetch(`${this.baseURL}/webauthn/finish-login?cli=${isCLI}`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -184,6 +192,8 @@ class WebAuthnClient {
             if (!response.ok) {
                 throw new Error(`Login completion failed: ${response.status}`);
             }
+
+
 
             return await response.json();
         } catch (error) {
