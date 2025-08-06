@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"log"
 
-	_ "github.com/mattn/go-sqlite3"
+	_ "modernc.org/sqlite"
 )
 
 // SQLiteDB implements the Database interface using SQLite
@@ -15,7 +15,7 @@ type SQLiteDB struct {
 
 // NewSQLite creates a new SQLite database connection
 func NewSQLite(dbPath string) (*SQLiteDB, error) {
-	db, err := sql.Open("sqlite3", dbPath)
+	db, err := sql.Open("sqlite", dbPath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open database: %v", err)
 	}

@@ -40,8 +40,7 @@ The `release.yml` workflow automatically builds, tests, and releases the Chapp a
 
 ### Requirements
 
-- Go 1.24+
-- CGO enabled (for SQLite)
+- Go 1.24.5+
 - GitHub CLI (for releases)
 - Write permissions to repository
 

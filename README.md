@@ -44,9 +44,9 @@ Hybrid Approach: Database persistence + memory performance
 
 ### **1. Build and Start Chapp Servers:**
 ```bash
-# Build both servers (requires CGO for SQLite)
-CGO_ENABLED=1 go build -o bin/static-server cmd/server/static/main.go
-CGO_ENABLED=1 go build -o bin/websocket-server cmd/server/websocket/main.go
+# Build both servers
+go build -o bin/static-server cmd/server/static/main.go
+go build -o bin/websocket-server cmd/server/websocket/main.go
 
 # Run static server (authentication, pages, static files)
 ./bin/static-server
@@ -116,27 +116,27 @@ The database file `chapp.db` will be created automatically on first run.
 ### **Database Management Tool:**
 ```bash
 # Show database statistics
-CGO_ENABLED=1 go run scripts/db_manage.go -stats
+go run scripts/db_manage.go -stats
 
 # Cleanup expired sessions
-CGO_ENABLED=1 go run scripts/db_manage.go -cleanup
+go run scripts/db_manage.go -cleanup
 
 # Backup database
-CGO_ENABLED=1 go run scripts/db_manage.go -backup backup.db
+go run scripts/db_manage.go -backup backup.db
 
 # Show help
-CGO_ENABLED=1 go run scripts/db_manage.go
+go run scripts/db_manage.go
 ```
 
 ## 🧪 **Testing**
 ```bash
-# Run all tests (requires CGO for SQLite tests)
-CGO_ENABLED=1 go test ./...
+# Run all tests
+go test ./...
 
 # Run specific test suites
-CGO_ENABLED=1 go test ./cmd/server/auth
-CGO_ENABLED=1 go test ./cmd/server/handlers
-CGO_ENABLED=1 go test ./pkg/database
+go test ./cmd/server/auth
+go test ./cmd/server/handlers
+go test ./pkg/database
 ```
 
 ### **Test Coverage:**
