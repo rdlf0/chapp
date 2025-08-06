@@ -134,7 +134,9 @@ jobs:
         # Setup GPG signing if GPG key is available
         if [ -n "${{ secrets.GPG_PRIVATE_KEY }}" ]; then
           echo "Setting up GPG signing..."
-          echo "${{ secrets.GPG_PRIVATE_KEY }}" | gpg --import
+          echo -n "${{ secrets.GPG_PRIVATE_KEY }}" | base64 --decode | gpg --import
+          gpg -k
+
           git config --local commit.gpgsign true
           git config --local tag.gpgsign true
           git config --local user.signingkey "${{ secrets.GPG_KEY_ID }}"
