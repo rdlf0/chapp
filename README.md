@@ -61,7 +61,20 @@ CGO_ENABLED=1 go build -o bin/websocket-server cmd/server/websocket/main.go
 
 The database file `chapp.db` will be created automatically on first run.
 
-### **2. Connect:**
+### **2. Automated Releases:**
+
+**GitHub Actions Workflow:**
+- **Automatic**: Merged PRs to `master` trigger releases
+- **Manual**: Manual workflow dispatch with version selection
+- **Multi-platform**: Builds for Linux, macOS, and Windows
+- **Semantic versioning**: Automatic version increments
+
+**Supported Platforms:**
+- **Linux**: AMD64 and ARM64
+- **macOS**: AMD64 and ARM64 (Apple Silicon)
+- **Windows**: AMD64
+
+### **3. Connect:**
 
 **Web Interface:**
 - Open `http://localhost:8080` in your browser
@@ -70,113 +83,6 @@ The database file `chapp.db` will be created automatically on first run.
 - Public keys are automatically shared
 
 **🔄 Automatic Reconnection:** The web client automatically reconnects if the server goes down, with exponential backoff to prevent overwhelming the server during recovery.
-
-
-
-
-
-
-
-## 📁 **Project Structure**
-
-```
-chapp/
-├── cmd/
-│   ├── server/
-│   │   ├── static/
-│   │   │   └── main.go                  # Static server entry point
-│   │   ├── websocket/
-│   │   │   └── main.go                  # WebSocket server entry point
-│   │   ├── auth/
-│   │   │   ├── session.go               # Session management
-│   │   │   ├── user.go                  # User management
-│   │   │   └── webauthn.go             # WebAuthn configuration
-│   │   ├── handlers/
-│   │   │   ├── auth_handlers.go         # Authentication endpoints
-│   │   │   ├── static_handlers.go       # Static file serving
-│   │   │   ├── webauthn_handlers.go     # WebAuthn endpoints
-│   │   │   └── websocket_handlers.go    # WebSocket handling
-│   │   └── types/
-│   │       └── server_types.go          # Server-specific types
-
-├── pkg/
-│   ├── database/
-│   │   ├── interface.go                 # Database interface
-│   │   ├── sqlite.go                    # SQLite implementation
-│   │   ├── manager.go                   # Database manager
-│   │   ├── utils.go                     # Database utilities
-│   │   └── sqlite_test.go              # Database tests
-│   └── types/
-│       ├── message.go                   # Shared Message struct
-│       ├── constants.go                 # Message type constants
-│       └── client.go                    # Shared client interfaces
-├── static/
-│   ├── index.html                       # Web chat interface
-│   ├── login.html                       # Login page
-│   ├── css/
-│   │   ├── styles.css                   # Web client styles
-│   │   └── login.css                    # Login page styles
-│   └── js/
-│       ├── script.js                    # Web client JavaScript
-│       └── login.js                     # Login page JavaScript
-├── bin/                                 # Build output directory
-├── scripts/
-│   └── db_manage.go                     # Database management tool
-├── chapp.db                             # SQLite database file (created on first run)
-├── README.md                            # This documentation
-├── go.mod                               # Go module dependencies
-└── go.sum                               # Dependency checksums
-```
-
-## 🏗️ **Architecture**
-
-### **Split Server Design:**
-- **Static Server (Port 8080)**: Handles authentication, login/logout, and static files
-- **WebSocket Server (Port 8081)**: Handles real-time messaging and chat functionality
-
-### **Benefits:**
-- **Fault Tolerance**: WebSocket failure doesn't break authentication
-- **Better UX**: Users can still login/logout when chat is down
-- **Independent Scaling**: Can scale static and WebSocket servers separately
-- **Clear Separation**: Authentication and messaging are logically separated
-- **Horizontal Scaling**: Can run multiple WebSocket servers behind a load balancer
-
-## 🔑 **Cryptographic Implementation**
-
-### **1. Client-Side Key Generation:**
-```javascript
-// Each user generates their own RSA key pair
-myKeyPair = await crypto.subtle.generateKey(
-    {
-        name: "RSA-OAEP",
-        modulusLength: 2048,
-        publicExponent: new Uint8Array([1, 0, 1]),
-        hash: "SHA-256"
-    },
-    true,
-    ["encrypt", "decrypt"]
-);
-```
-
-### **2. Client-Side Encryption:**
-```javascript
-// Client encrypts message with recipient's public key
-const encrypted = await crypto.subtle.encrypt(
-    { name: "RSA-OAEP" },
-    recipientPublicKey,
-    messageBytes
-);
-```
-
-### **3. Client-Side Decryption:**
-```javascript
-// Client decrypts with their own private key
-const decrypted = await crypto.subtle.decrypt(
-    { name: "RSA-OAEP" },
-    myKeyPair.privateKey,
-    encryptedBytes
-);
-```
 
 ## 🛡️ **Security Model**
 
@@ -199,10 +105,6 @@ const decrypted = await crypto.subtle.decrypt(
 5. **Server** broadcasts encrypted messages to all connected users
 6. **User B** decrypts message with their private key
 
-
-
-
-
 ## 🗄️ **Database Management**
 
 ### **Database Features:**
@@ -212,7 +114,7 @@ const decrypted = await crypto.subtle.decrypt(
 - **Backup Support**: Database can be backed up and restored
 
 ### **Database Management Tool:**
-   ```bash
+```bash
 # Show database statistics
 CGO_ENABLED=1 go run scripts/db_manage.go -stats
 
@@ -225,8 +127,6 @@ CGO_ENABLED=1 go run scripts/db_manage.go -backup backup.db
 # Show help
 CGO_ENABLED=1 go run scripts/db_manage.go
 ```
-
-
 
 ## 🧪 **Testing**
 ```bash
@@ -262,8 +162,6 @@ go tool cover -func=coverage.out
 - ✅ **No hanging tests** - Properly structured for CI/CD
 - ✅ **Comprehensive coverage** - Core functionality thoroughly tested
 - ✅ **Clean organization** - Tests match modular code structure
-
-
 
 ### **Production Enhancements:**
 - 🔄 **Perfect Forward Secrecy** (key rotation)
@@ -310,6 +208,3 @@ go tool cover -func=coverage.out
 - **Signal Protocol**: https://signal.org/docs/
 - **Web Crypto API**: https://developer.mozilla.org/en-US/docs/Web/API/Web_Crypto_API
 - **RSA-OAEP**: https://en.wikipedia.org/wiki/Optimal_asymmetric_encryption_padding
-
-
-

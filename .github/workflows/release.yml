@@ -1,0 +1,294 @@
+name: Release
+
+on:
+  push:
+    branches: [ master ]
+  workflow_dispatch:
+    inputs:
+      version_type:
+        description: 'Version type to increment'
+        required: true
+        default: 'minor'
+        type: choice
+        options:
+        - patch
+        - minor
+        - major
+
+env:
+  GO_VERSION: '1.24'
+  CGO_ENABLED: 1
+
+jobs:
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Go
+      uses: actions/setup-go@v4
+      with:
+        go-version: ${{ env.GO_VERSION }}
+        cache: true
+
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y gcc libc6-dev
+
+    - name: Run tests
+      run: |
+        go test -v ./...
+        go test -coverprofile=coverage.out ./...
+        go tool cover -func=coverage.out
+
+    - name: Print coverage summary
+      run: |
+        echo "## Test Coverage Summary" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        go tool cover -func=coverage.out | while IFS= read -r line; do
+          echo "- $line" >> $GITHUB_STEP_SUMMARY
+        done
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "Overall coverage:" >> $GITHUB_STEP_SUMMARY
+        go tool cover -func=coverage.out | tail -1 >> $GITHUB_STEP_SUMMARY
+
+  build:
+    name: Build
+    needs: test
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - os: linux
+            arch: amd64
+            suffix: linux-amd64
+          - os: linux
+            arch: arm64
+            suffix: linux-arm64
+          - os: darwin
+            arch: amd64
+            suffix: darwin-amd64
+          - os: darwin
+            arch: arm64
+            suffix: darwin-arm64
+          - os: windows
+            arch: amd64
+            suffix: windows-amd64.exe
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Go
+      uses: actions/setup-go@v4
+      with:
+        go-version: ${{ env.GO_VERSION }}
+        cache: true
+
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y gcc libc6-dev
+
+    - name: Build static server
+      run: |
+        GOOS=${{ matrix.os }} GOARCH=${{ matrix.arch }} go build -o bin/static-server-${{ matrix.suffix }} cmd/server/static/main.go
+        if [ "${{ matrix.os }}" != "windows" ]; then
+          chmod +x bin/static-server-${{ matrix.suffix }}
+        fi
+
+    - name: Build websocket server
+      run: |
+        GOOS=${{ matrix.os }} GOARCH=${{ matrix.arch }} go build -o bin/websocket-server-${{ matrix.suffix }} cmd/server/websocket/main.go
+        if [ "${{ matrix.os }}" != "windows" ]; then
+          chmod +x bin/websocket-server-${{ matrix.suffix }}
+        fi
+
+    - name: Upload build artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: chapp-binaries-${{ matrix.suffix }}
+        path: bin/
+        retention-days: 30
+
+  create-release:
+    name: Release
+    needs: build
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/master'
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Set up Go
+      uses: actions/setup-go@v4
+      with:
+        go-version: ${{ env.GO_VERSION }}
+
+    - name: Download all build artifacts
+      uses: actions/download-artifact@v4
+      with:
+        path: bin/
+
+    - name: Setup Git
+      run: |
+        git config --local user.email "r.stoyanov@outlook.com"
+        git config --local user.name "Radoslav Stoyanov"
+        
+        # Setup GPG signing if GPG key is available
+        if [ -n "${{ secrets.GPG_PRIVATE_KEY }}" ]; then
+          echo "Setting up GPG signing..."
+          echo "${{ secrets.GPG_PRIVATE_KEY }}" | gpg --import
+          git config --local commit.gpgsign true
+          git config --local tag.gpgsign true
+          git config --local user.signingkey "${{ secrets.GPG_KEY_ID }}"
+        fi
+
+    - name: Authenticate with GitHub
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        echo "$GITHUB_TOKEN" | gh auth login --with-token
+
+    - name: Get current version
+      id: current_version
+      run: |
+        # Get the latest tag
+        latest_tag=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
+        echo "latest_tag=$latest_tag" >> $GITHUB_OUTPUT
+
+    - name: Calculate new version
+      id: new_version
+      run: |
+        latest_tag="${{ steps.current_version.outputs.latest_tag }}"
+        
+        # Remove 'v' prefix and split version
+        version="${latest_tag#v}"
+        IFS='.' read -r major minor patch <<< "$version"
+        
+        # Ensure we have valid numbers
+        major=${major:-0}
+        minor=${minor:-0}
+        patch=${patch:-0}
+        
+        # Determine version increment based on workflow trigger
+        if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+          version_type="${{ github.event.inputs.version_type }}"
+        else
+          # Use the same default as defined in workflow_dispatch
+          version_type="minor"
+        fi
+        
+        # Increment version
+        case $version_type in
+          major)
+            major=$((major + 1))
+            minor=0
+            patch=0
+            ;;
+          minor)
+            minor=$((minor + 1))
+            patch=0
+            ;;
+          patch)
+            patch=$((patch + 1))
+            ;;
+        esac
+        
+        new_version="v${major}.${minor}.${patch}"
+        echo "new_version=$new_version" >> $GITHUB_OUTPUT
+        echo "version_type=$version_type" >> $GITHUB_OUTPUT
+        echo "Calculated new version: $new_version"
+
+    - name: Print release info
+      run: |
+        echo "## Release Information" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "- **New Version**: ${{ steps.new_version.outputs.new_version }}" >> $GITHUB_STEP_SUMMARY
+
+    - name: Create and push tag
+      run: |
+        # Create signed tag if GPG is available, otherwise unsigned
+        if [ -n "${{ secrets.GPG_PRIVATE_KEY }}" ]; then
+          echo "Creating signed tag..."
+          git tag -s "${{ steps.new_version.outputs.new_version }}" -m "Release ${{ steps.new_version.outputs.new_version }}"
+        else
+          echo "Creating unsigned tag..."
+          git tag -a "${{ steps.new_version.outputs.new_version }}" -m "Release ${{ steps.new_version.outputs.new_version }}"
+        fi
+        git push origin "${{ steps.new_version.outputs.new_version }}"
+
+    - name: Create GitHub Release
+      id: create_release
+      run: |
+        # Create release notes
+        cat > release_notes.md << EOF
+        ## Chapp ${{ steps.new_version.outputs.new_version }}
+        
+        ### What's New
+        [TODO: Add new features and improvements]
+        
+        ### Downloads
+        
+        **Static Server** (Authentication and static file server):
+        - \`static-server-linux-amd64\` - Linux x86_64
+        - \`static-server-linux-arm64\` - Linux ARM64
+        - \`static-server-darwin-amd64\` - macOS x86_64
+        - \`static-server-darwin-arm64\` - macOS ARM64 (Apple Silicon)
+        - \`static-server-windows-amd64.exe\` - Windows x86_64
+        
+        **WebSocket Server** (Real-time messaging server):
+        - \`websocket-server-linux-amd64\` - Linux x86_64
+        - \`websocket-server-linux-arm64\` - Linux ARM64
+        - \`websocket-server-darwin-amd64\` - macOS x86_64
+        - \`websocket-server-darwin-arm64\` - macOS ARM64 (Apple Silicon)
+        - \`websocket-server-windows-amd64.exe\` - Windows x86_64
+        
+        ### Installation
+        \`\`\`bash
+        # Download the appropriate binary for your platform
+        # Make executable (Linux/macOS)
+        chmod +x static-server-<platform>
+        chmod +x websocket-server-<platform>
+        
+        # Run the servers
+        ./static-server-<platform>    # Port 8080
+        ./websocket-server-<platform> # Port 8081
+        \`\`\`
+        
+        ### Changes
+        [TODO: Add changelog or link to commit history]
+        
+        ### Breaking Changes
+        [TODO: List any breaking changes if applicable]
+        
+        ### Migration Guide
+        [TODO: Add migration instructions if needed]
+        EOF
+        
+        # Create release using GitHub CLI
+        gh release create "${{ steps.new_version.outputs.new_version }}" \
+          --title "Chapp ${{ steps.new_version.outputs.new_version }}" \
+          --notes-file release_notes.md \
+          --draft=false \
+          --prerelease=false
+
+    - name: Upload all platform assets
+      run: |
+        # Upload static server binaries
+        for binary in bin/static-server-*; do
+          echo "Uploading $binary..."
+          gh release upload "${{ steps.new_version.outputs.new_version }}" "$binary" --clobber
+        done
+        
+        # Upload websocket server binaries
+        for binary in bin/websocket-server-*; do
+          echo "Uploading $binary..."
+          gh release upload "${{ steps.new_version.outputs.new_version }}" "$binary" --clobber 
