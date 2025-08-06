@@ -129,9 +129,10 @@ jobs:
         go-version: ${{ env.GO_VERSION }}
 
     - name: Download all build artifacts
-      uses: actions/download-artifact@v4
+      uses: actions/download-artifact@v5
       with:
         path: bin/
+        merge-multiple: true
 
     - name: Setup Git
       run: |
@@ -275,13 +276,10 @@ jobs:
       env:
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
-        # Upload static server binaries
-        for binary in bin/static-server-*; do
+        ls -l bin/
+      
+        # Upload binaries
+        for binary in bin/*; do
           echo "Uploading $binary..."
           gh release upload "${{ steps.new_version.outputs.new_version }}" "$binary" --clobber
         done
-        
-        # Upload websocket server binaries
-        for binary in bin/websocket-server-*; do
-          echo "Uploading $binary..."
-          gh release upload "${{ steps.new_version.outputs.new_version }}" "$binary" --clobber 
