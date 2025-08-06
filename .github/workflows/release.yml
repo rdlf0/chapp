@@ -97,11 +97,18 @@ jobs:
           chmod +x bin/websocket-server-${{ matrix.suffix }}
         fi
 
-    - name: Upload build artifacts
+    - name: Upload static server artifacts
       uses: actions/upload-artifact@v4
       with:
-        name: chapp-binaries-${{ matrix.suffix }}
-        path: bin/
+        name: static-server-${{ matrix.suffix }}
+        path: bin/static-server-${{ matrix.suffix }}
+        retention-days: 30
+
+    - name: Upload websocket server artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: websocket-server-${{ matrix.suffix }}
+        path: bin/websocket-server-${{ matrix.suffix }}
         retention-days: 30
 
   create-release:
@@ -131,16 +138,13 @@ jobs:
         git config --local user.email "r.stoyanov@outlook.com"
         git config --local user.name "Radoslav Stoyanov"
         
-        # Setup GPG signing if GPG key is available
-        if [ -n "${{ secrets.GPG_PRIVATE_KEY }}" ]; then
-          echo "Setting up GPG signing..."
-          echo -n "${{ secrets.GPG_PRIVATE_KEY }}" | base64 --decode | gpg --import
-          gpg -k
+        echo "Setting up GPG signing..."
+        echo -n "${{ secrets.GPG_PRIVATE_KEY }}" | base64 --decode | gpg --import
+        gpg -k
 
-          git config --local commit.gpgsign true
-          git config --local tag.gpgsign true
-          git config --local user.signingkey "${{ secrets.GPG_KEY_ID }}"
-        fi
+        git config --local commit.gpgsign true
+        git config --local tag.gpgsign true
+        git config --local user.signingkey "${{ secrets.GPG_KEY_ID }}"
 
     - name: Get current version
       id: current_version
