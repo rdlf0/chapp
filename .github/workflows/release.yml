@@ -142,12 +142,6 @@ jobs:
           git config --local user.signingkey "${{ secrets.GPG_KEY_ID }}"
         fi
 
-    - name: Authenticate with GitHub
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      run: |
-        echo "$GITHUB_TOKEN" | gh auth login --with-token
-
     - name: Get current version
       id: current_version
       run: |
@@ -218,6 +212,8 @@ jobs:
 
     - name: Create GitHub Release
       id: create_release
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
         # Create release notes
         cat > release_notes.md << EOF
@@ -272,6 +268,8 @@ jobs:
           --prerelease=false
 
     - name: Upload all platform assets
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
         # Upload static server binaries
         for binary in bin/static-server-*; do
