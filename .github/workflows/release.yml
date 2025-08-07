@@ -171,13 +171,16 @@ jobs:
           # Push trigger
           version_type="minor"  # default
           
-          # Try to get PR number from context
-          pr_number="${{ github.context.issue.number }}"
-          echo "PR number from context: '$pr_number'"
+          # Get PRs associated with the merge commit
+          commit_sha="${{ github.sha }}"
+          echo "Commit SHA: '$commit_sha'"
           
-          if [ -n "$pr_number" ] && [ "$pr_number" != "null" ]; then
-            # Get PR labels using GitHub API
-            pr_labels=$(gh pr view "$pr_number" --json labels --jq '.labels[].name' | tr '\n' ' ')
+          # Use GitHub API to get PRs associated with this commit
+          pr_data=$(gh api repos/${{ github.repository }}/commits/$commit_sha/pulls --jq '.[0]' 2>/dev/null)
+          
+          if [ -n "$pr_data" ] && [ "$pr_data" != "null" ]; then
+            # Extract labels from the PR
+            pr_labels=$(echo "$pr_data" | jq -r '.labels[].name' 2>/dev/null | tr '\n' ' ')
             echo "PR labels from API: '$pr_labels'"
             
             # Check for release labels
