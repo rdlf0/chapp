@@ -8,7 +8,7 @@ The `release.yml` workflow automatically builds, tests, and releases the Chapp a
 
 ### Triggers
 
-- **Automatic**: Merged PRs to the `master` branch
+- **Automatic**: Merged PRs to the `master` branch (version type determined by PR labels)
 - **Manual**: Manual workflow dispatch with version type selection
 
 ### Features
@@ -16,6 +16,7 @@ The `release.yml` workflow automatically builds, tests, and releases the Chapp a
 - ✅ **Test**: Runs all tests with coverage reporting
 - ✅ **Build**: Compiles both servers for multiple platforms
 - ✅ **Semantic Versioning**: Automatically increments version numbers
+- ✅ **PR Label Versioning**: Determines version type from PR labels
 - ✅ **GitHub Releases**: Creates releases with binaries attached
 - ✅ **Manual Control**: Supports manual triggering with version type selection
 - ✅ **Job Summaries**: Displays test coverage and release information
@@ -23,6 +24,14 @@ The `release.yml` workflow automatically builds, tests, and releases the Chapp a
 
 ### Version Types
 
+The workflow determines the version type based on the trigger:
+
+#### For Merged PRs (Automatic)
+- **`release: major`**: Increments major version (0.1.0 → 1.0.0)
+- **`release: minor`**: Increments minor version (0.1.0 → 0.2.0) - **Default**
+- **`release: patch`**: Increments patch version (0.1.0 → 0.1.1)
+
+#### For Manual Triggers
 - **minor**: Increments minor version (0.1.0 → 0.2.0) - **Default**
 - **patch**: Increments patch version (0.1.0 → 0.1.1)
 - **major**: Increments major version (0.1.0 → 1.0.0)
@@ -35,7 +44,11 @@ The `release.yml` workflow automatically builds, tests, and releases the Chapp a
 
 ### Usage
 
-1. **Automatic Release**: Merge PR to `master` branch
+1. **Automatic Release**: 
+   - Create a PR to `master` branch
+   - Add one of the release labels: `release: major`, `release: minor`, or `release: patch`
+   - Merge the PR (workflow will trigger automatically)
+
 2. **Manual Release**: Go to Actions → Release → Run workflow → Select version type
 
 ### Requirements
