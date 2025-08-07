@@ -3,13 +3,12 @@ name: PR Validation
 on:
   pull_request:
     types: [opened, reopened, synchronize]
-    branches: [ master ]
 
 env:
   GO_VERSION: '1.24.5'
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.head_ref }}
+  group: ${{ github.event.pull_request.head.ref }}-${{ github.workflow }}
   cancel-in-progress: true
 
 jobs:
@@ -80,16 +79,10 @@ jobs:
     - name: Build static server
       run: |
         GOOS=${{ matrix.os }} GOARCH=${{ matrix.arch }} go build -o bin/static-server-${{ matrix.suffix }} cmd/server/static/main.go
-        if [ "${{ matrix.os }}" != "windows" ]; then
-          chmod +x bin/static-server-${{ matrix.suffix }}
-        fi
 
     - name: Build websocket server
       run: |
         GOOS=${{ matrix.os }} GOARCH=${{ matrix.arch }} go build -o bin/websocket-server-${{ matrix.suffix }} cmd/server/websocket/main.go
-        if [ "${{ matrix.os }}" != "windows" ]; then
-          chmod +x bin/websocket-server-${{ matrix.suffix }}
-        fi
 
     - name: Print build summary
       run: |

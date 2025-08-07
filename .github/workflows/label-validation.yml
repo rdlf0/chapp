@@ -1,0 +1,48 @@
+name: Label Validation
+
+on:
+  pull_request:
+    types: [opened, reopened, labeled, unlabeled, synchronize]
+
+concurrency:
+  group: ${{ github.event.pull_request.head.ref }}-${{ github.workflow }}
+  cancel-in-progress: true
+
+jobs:
+  validate-labels:
+    name: Validate Labels
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Exactly one release label required
+      run: |
+        # Extract PR labels
+        pr_labels="${{ join(github.event.pull_request.labels.*.name, ' ') }}"
+        
+        # Debug: Print all labels
+        echo "All PR labels: '$pr_labels'"
+        
+        # Count release labels
+        release_labels=0
+        if echo "$pr_labels" | grep -q "release: major"; then
+          release_labels=$((release_labels + 1))
+        fi
+        if echo "$pr_labels" | grep -q "release: minor"; then
+          release_labels=$((release_labels + 1))
+        fi
+        if echo "$pr_labels" | grep -q "release: patch"; then
+          release_labels=$((release_labels + 1))
+        fi
+        
+        echo "Found $release_labels release label(s)"
+        
+        # Validate exactly one release label
+        if [ $release_labels -eq 0 ]; then
+          echo "❌ No release label found. Please add exactly one of: release: major, release: minor, release: patch"
+          exit 1
+        elif [ $release_labels -gt 1 ]; then
+          echo "❌ Multiple release labels found ($release_labels). Please use exactly one of: release: major, release: minor, release: patch"
+          exit 1
+        else
+          echo "✅ Exactly one release label found - validation passed"
+        fi

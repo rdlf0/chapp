@@ -29,6 +29,38 @@ The `pr-validation.yml` workflow validates pull requests by running tests and bu
 1. **Automatic**: Created automatically when PRs are opened, reopened, or updated
 2. **Status**: Check PR status checks to see validation results
 
+## Label Validation Workflow
+
+The `label-validation.yml` workflow validates that PRs have exactly one release label.
+
+### Triggers
+
+- **Automatic**: PR events (opened, reopened, labeled, unlabeled, synchronize)
+
+### Features
+
+- ✅ **Label Validation**: Ensures PRs have exactly one release label
+- ✅ **Required Labels**: Validates against `release: major`, `release: minor`, `release: patch`
+- ✅ **Exact Count**: Requires exactly 1 label (not 0, not 2+)
+- ✅ **Real-time Feedback**: Validates immediately when labels are added/removed
+
+### Valid Labels
+
+- **`release: major`**: For major version releases
+- **`release: minor`**: For minor version releases  
+- **`release: patch`**: For patch version releases
+
+### Output
+
+- **Pass**: PR has exactly one of the required release labels
+- **Fail**: PR has 0 or 2+ release labels
+
+### Usage
+
+1. **Automatic**: Runs automatically when PRs are created or labels are modified
+2. **Required**: PRs must have exactly one release label to pass validation
+3. **Status**: Check PR status checks to see label validation results
+
 ## Release Workflow
 
 The `release.yml` workflow automatically builds, tests, and releases the Chapp application.
