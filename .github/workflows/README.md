@@ -2,6 +2,33 @@
 
 This directory contains GitHub Actions workflows for the Chapp project.
 
+## PR Validation Workflow
+
+The `pr-validation.yml` workflow validates pull requests by running tests and builds.
+
+### Triggers
+
+- **Automatic**: PR events (opened, reopened, synchronize)
+
+### Features
+
+- ✅ **Test**: Runs all tests with coverage reporting
+- ✅ **Build**: Compiles both servers for multiple platforms
+- ✅ **Job Summaries**: Displays test coverage and build information
+- ✅ **Multi-platform**: Builds for Linux, macOS, and Windows
+- ✅ **Concurrency Control**: Cancels in-progress runs when new commits are pushed
+
+### Output
+
+- **Test Results**: Pass/fail status with coverage information
+- **Build Results**: Success/failure status for all target platforms
+- **Job Summaries**: Detailed coverage and build summaries in GitHub UI
+
+### Usage
+
+1. **Automatic**: Created automatically when PRs are opened, reopened, or updated
+2. **Status**: Check PR status checks to see validation results
+
 ## Release Workflow
 
 The `release.yml` workflow automatically builds, tests, and releases the Chapp application.
