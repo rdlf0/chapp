@@ -119,7 +119,6 @@ jobs:
     name: Release
     needs: build
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/master'
     
     steps:
     - name: Checkout code
@@ -162,10 +161,36 @@ jobs:
         echo "latest_tag=$latest_tag" >> $GITHUB_OUTPUT
         echo "Found latest tag: $latest_tag"
 
+    - name: Determine version type
+      id: version_type
+      run: |
+        if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+          # Manual trigger - use input value
+          version_type="${{ github.event.inputs.version_type }}"
+        else
+          # PR trigger - determine from labels
+          pr_labels="${{ github.event.pull_request.labels.*.name }}"
+          
+          # Check for release labels
+          if echo "$pr_labels" | grep -q "release: major"; then
+            version_type="major"
+          elif echo "$pr_labels" | grep -q "release: minor"; then
+            version_type="minor"
+          elif echo "$pr_labels" | grep -q "release: patch"; then
+            version_type="patch"
+          else
+            version_type="minor"  # default
+          fi
+        fi
+        
+        echo "version_type=$version_type" >> $GITHUB_OUTPUT
+        echo "Determined version type: $version_type"
+
     - name: Calculate new version
       id: new_version
       run: |
         latest_tag="${{ steps.current_version.outputs.latest_tag }}"
+        version_type="${{ steps.version_type.outputs.version_type }}"
         
         # Remove 'v' prefix and split version
         version="${latest_tag#v}"
@@ -175,14 +200,6 @@ jobs:
         major=${major:-0}
         minor=${minor:-0}
         patch=${patch:-0}
-        
-        # Determine version increment based on workflow trigger
-        if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
-          version_type="${{ github.event.inputs.version_type }}"
-        else
-          # Use the same default as defined in workflow_dispatch
-          version_type="minor"
-        fi
         
         # Increment version
         case $version_type in

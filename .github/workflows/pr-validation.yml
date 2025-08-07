@@ -1,0 +1,93 @@
+name: PR Validation
+
+on:
+  pull_request:
+    types: [opened, reopened, synchronize]
+
+env:
+  GO_VERSION: '1.24.5'
+
+concurrency:
+  group: ${{ github.event.pull_request.head.ref }}-${{ github.workflow }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Go
+      uses: actions/setup-go@v4
+      with:
+        go-version: ${{ env.GO_VERSION }}
+        cache: true
+
+    - name: Run tests
+      run: |
+        go test -v ./...
+        go test -coverprofile=coverage.out ./...
+        go tool cover -func=coverage.out
+
+    - name: Print coverage summary
+      run: |
+        echo "## Test Coverage Summary" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        go tool cover -func=coverage.out | while IFS= read -r line; do
+          echo "- $line" >> $GITHUB_STEP_SUMMARY
+        done
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "Overall coverage:" >> $GITHUB_STEP_SUMMARY
+        go tool cover -func=coverage.out | tail -1 >> $GITHUB_STEP_SUMMARY
+
+  build:
+    name: Build
+    needs: test
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - os: linux
+            arch: amd64
+            suffix: linux-amd64
+          - os: linux
+            arch: arm64
+            suffix: linux-arm64
+          - os: darwin
+            arch: amd64
+            suffix: darwin-amd64
+          - os: darwin
+            arch: arm64
+            suffix: darwin-arm64
+          - os: windows
+            arch: amd64
+            suffix: windows-amd64.exe
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Go
+      uses: actions/setup-go@v4
+      with:
+        go-version: ${{ env.GO_VERSION }}
+        cache: true
+
+    - name: Build static server
+      run: |
+        GOOS=${{ matrix.os }} GOARCH=${{ matrix.arch }} go build -o bin/static-server-${{ matrix.suffix }} cmd/server/static/main.go
+
+    - name: Build websocket server
+      run: |
+        GOOS=${{ matrix.os }} GOARCH=${{ matrix.arch }} go build -o bin/websocket-server-${{ matrix.suffix }} cmd/server/websocket/main.go
+
+    - name: Print build summary
+      run: |
+        echo "## Build Summary" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "✅ Successfully built for ${{ matrix.os }}-${{ matrix.arch }}" >> $GITHUB_STEP_SUMMARY
+        echo "- static-server-${{ matrix.suffix }}" >> $GITHUB_STEP_SUMMARY
+        echo "- websocket-server-${{ matrix.suffix }}" >> $GITHUB_STEP_SUMMARY
