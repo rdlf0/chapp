@@ -6,6 +6,7 @@
     <title>Chapp - Login</title>
     <link rel="stylesheet" href="css/styles.css">
     <link rel="stylesheet" href="css/login.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 <body>
     <div class="login-container">
@@ -23,19 +24,15 @@
             
             <div class="passkey-buttons">
                 <button type="button" id="passkeyLoginBtn" class="submit-btn passkey-btn" disabled>
-                    <span class="passkey-icon">🔑</span>
-                    Login with Passkey
+                    <i class="fas fa-key"></i>
+                    <span>Login with Passkey</span>
                 </button>
                 
                 <button type="button" id="passkeyRegisterBtn" class="submit-btn passkey-btn" disabled>
-                    <span class="passkey-icon">🔑</span>
-                    Create Passkey Account
+                    <i class="fas fa-user-plus"></i>
+                    <span>Create Passkey Account</span>
                 </button>
             </div>
-        </div>
-
-        <div class="security-badge">
-            🔐 Secure by Design: Your messages are encrypted on your device
         </div>
     </div>
 
@@ -43,7 +40,7 @@
     <div id="successNotification" class="success-notification">
         <button type="button" class="notification-close" id="notificationClose">&times;</button>
         <div class="notification-header">
-            <span class="notification-icon">✅</span>
+            <i class="fas fa-check-circle"></i>
             <span>Passkey Created Successfully!</span>
         </div>
         <div class="notification-message">
@@ -77,8 +74,8 @@
                 
                 <div class="modal-buttons">
                     <button type="button" id="confirmRegisterBtn" class="submit-btn passkey-btn">
-                        <span class="passkey-icon">🔑</span>
-                        Create Passkey
+                        <i class="fas fa-user-plus"></i>
+                        <span>Create Passkey</span>
                     </button>
                     
                     <button type="button" class="submit-btn secondary-btn" id="cancelRegisterBtn">

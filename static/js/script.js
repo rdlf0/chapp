@@ -230,8 +230,13 @@ function updateClientsList() {
         const currentUserItem = document.createElement('div');
         currentUserItem.className = 'client-item';
         currentUserItem.innerHTML = `
-            <span class="client-username">${username} (you)</span>
-            <span class="lock-icon" title="Your Public Key (Click to copy)" onclick="copyMyPublicKey()">🔒</span>
+            <span class="client-username">
+                <i class="fas fa-user"></i>
+                ${username} (you)
+            </span>
+            <span class="lock-icon" title="Your Public Key (Click to copy)" onclick="copyMyPublicKey()">
+                <i class="fas fa-lock"></i>
+            </span>
         `;
         clientsList.appendChild(currentUserItem);
     }
@@ -244,8 +249,13 @@ function updateClientsList() {
         const clientItem = document.createElement('div');
         clientItem.className = 'client-item';
         clientItem.innerHTML = `
-            <span class="client-username">${clientID}</span>
-            <span class="lock-icon" title="${clientID}'s Public Key (Click to copy)" onclick="copyPublicKey('${clientID}', '${publicKey}')">🔒</span>
+            <span class="client-username">
+                <i class="fas fa-user"></i>
+                ${clientID}
+            </span>
+            <span class="lock-icon" title="${clientID}'s Public Key (Click to copy)" onclick="copyPublicKey('${clientID}', '${publicKey}')">
+                <i class="fas fa-lock"></i>
+            </span>
         `;
         clientsList.appendChild(clientItem);
     }

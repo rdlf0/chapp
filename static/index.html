@@ -5,11 +5,19 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Chapp - E2E Chat</title>
     <link rel="stylesheet" href="css/styles.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <meta name="theme-color" content="#0f0f23">
+    <meta name="description" content="Secure end-to-end encrypted chat application">
 </head>
 <body>
     <div class="container">
-        <div class="chat-section">
-            <div class="header">
+        <!-- Main Chat Section -->
+        <main class="chat-section">
+            <!-- Header -->
+            <header class="header">
                 <div class="chapp-logo">
                     <div class="logo-icon"></div>
                     <span class="logo-text">Chapp</span>
@@ -19,21 +27,44 @@
                         <span class="connection-dot"></span>
                         <span class="connection-text">Connecting...</span>
                     </div>
-                    <button id="logoutBtn" class="logout-btn">Logout</button>
+                    <button id="logoutBtn" class="logout-btn">
+                        <i class="fas fa-sign-out-alt"></i>
+                        <span>Logout</span>
+                    </button>
                 </div>
+            </header>
+            
+            <!-- Messages Area -->
+            <section class="messages" id="messages" role="log" aria-live="polite">
+                <!-- Messages will be dynamically inserted here -->
+            </section>
+            
+            <!-- Input Area -->
+            <section class="input-section">
+                <input 
+                    type="text" 
+                    id="messageInput" 
+                    placeholder="Type your message..." 
+                    disabled
+                    aria-label="Message input"
+                    autocomplete="off"
+                >
+                <button id="sendButton" disabled aria-label="Send message">
+                    <i class="fas fa-paper-plane"></i>
+                    <span>Send</span>
+                </button>
+            </section>
+        </main>
+        
+        <!-- Sidebar - Connected Users -->
+        <aside class="clients-section">
+            <h2 class="clients-header">Connected Users</h2>
+            <div id="clientsList" role="list" aria-label="Connected users list">
+                <!-- Connected users will be dynamically inserted here -->
             </div>
-            <div class="messages" id="messages"></div>
-            <div class="input-section">
-                <input type="text" id="messageInput" placeholder="Type your message..." disabled>
-                <button id="sendButton" disabled>Send</button>
-            </div>
-        </div>
-        <div class="clients-section">
-            <div class="clients-header">Connected Clients</div>
-            <div id="clientsList"></div>
-        </div>
+        </aside>
     </div>
 
-    <script src="js/script.js?v=3"></script>
+    <script src="js/script.js?v=5"></script>
 </body>
 </html> 
