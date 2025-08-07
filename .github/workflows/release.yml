@@ -170,6 +170,9 @@ jobs:
         else
           # PR trigger - determine from labels
           pr_labels="${{ join(github.event.pull_request.labels.*.name, ' ') }}"
+
+          # Debug: Print all labels
+          echo "All PR labels: '$pr_labels'"
           
           # Check for release labels
           if echo "$pr_labels" | grep -q "release: major"; then
