@@ -169,7 +169,7 @@ jobs:
           version_type="${{ github.event.inputs.version_type }}"
         else
           # PR trigger - determine from labels
-          pr_labels="${{ github.event.pull_request.labels.*.name }}"
+          pr_labels="${{ join(github.event.pull_request.labels.*.name, ' ') }}"
           
           # Check for release labels
           if echo "$pr_labels" | grep -q "release: major"; then
