@@ -197,7 +197,7 @@ jobs:
           const prs = data?.repository?.object?.associatedPullRequests?.nodes ?? [];
           if (prs.length === 0) {
             core.warning(`No PR found for commit ${sha}`);
-            core.setOutput('release_type', '');
+            core.setOutput('version_type', 'minor');
             return;
           }
 
@@ -205,7 +205,7 @@ jobs:
           const matchedType = Object.entries(labelMap).find(([label]) => labels.includes(label))?.[1] || '';
 
           core.info(`Matched release type: ${matchedType || 'minor'}`);
-          core.setOutput('release_type', matchedType);
+          core.setOutput('version_type', matchedType);
 
     - name: Calculate new version
       id: new_version
