@@ -163,43 +163,49 @@ jobs:
 
     - name: Determine version type
       id: version_type
-      run: |
-        if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
-          # Manual trigger - use input value
-          version_type="${{ github.event.inputs.version_type }}"
-        else
-          # Push trigger
-          version_type="minor"  # default
-          
-          # Get PRs associated with the merge commit
-          commit_sha="${{ github.sha }}"
-          echo "Commit SHA: '$commit_sha'"
-          
-          # Use GitHub API to get PRs associated with this commit
-          pr_data=$(gh api repos/${{ github.repository }}/commits/${{ github.sha }}/pulls --jq '.[0]' 2>/dev/null || echo "")
+      uses: actions/github-script@v7
+      with:
+        github-token: ${{ secrets.GITHUB_TOKEN }}
+        script: |
+          const {owner, repo} = context.repo;
+          const sha = context.sha;
 
-          echo $pr_data | jq .
-          
-          if [ -n "$pr_data" ] && [ "$pr_data" != "null" ] && [ "$pr_data" != "" ]; then
-            # Extract labels from the PR
-            pr_labels=$(echo "$pr_data" | jq -r '.labels[].name' 2>/dev/null | tr '\n' ' ' || echo "")
-            echo "PR labels from API: '$pr_labels'"
-            
-            # Check for release labels
-            if echo "$pr_labels" | grep -q "release: major"; then
-              version_type="major"
-            elif echo "$pr_labels" | grep -q "release: minor"; then
-              version_type="minor"
-            elif echo "$pr_labels" | grep -q "release: patch"; then
-              version_type="patch"
-            fi
-          else
-            echo "No PR data found for commit $commit_sha"
-          fi
-        fi
-        
-        echo "version_type=$version_type" >> $GITHUB_OUTPUT
-        echo "Determined version type: $version_type"
+          const labelMap = {
+            "release: major": "major",
+            "release: minor": "minor",
+            "release: patch": "patch"
+          };
+
+          const query = `
+            query($owner:String!, $repo:String!, $sha:GitObjectID!) {
+              repository(owner:$owner, name:$repo) {
+                object(oid:$sha) {
+                  ... on Commit {
+                    associatedPullRequests(first: 1) {
+                      nodes {
+                        number
+                        labels(first: 100) { nodes { name } }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          `;
+          const data = await github.graphql(query, { owner, repo, sha });
+
+          const prs = data?.repository?.object?.associatedPullRequests?.nodes ?? [];
+          if (prs.length === 0) {
+            core.warning(`No PR found for commit ${sha}`);
+            core.setOutput('release_type', '');
+            return;
+          }
+
+          const labels = prs[0].labels.nodes.map(n => n.name);
+          const matchedType = Object.entries(labelMap).find(([label]) => labels.includes(label))?.[1] || '';
+
+          core.info(`Matched release type: ${matchedType || 'minor'}`);
+          core.setOutput('release_type', matchedType);
 
     - name: Calculate new version
       id: new_version
