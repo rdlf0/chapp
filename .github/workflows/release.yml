@@ -176,11 +176,11 @@ jobs:
           echo "Commit SHA: '$commit_sha'"
           
           # Use GitHub API to get PRs associated with this commit
-          pr_data=$(gh api repos/${{ github.repository }}/commits/$commit_sha/pulls --jq '.[0]' 2>/dev/null)
+          pr_data=$(gh api repos/${{ github.repository }}/commits/${{ github.sha }}/pulls --jq '.[0]' 2>/dev/null || echo "")
           
-          if [ -n "$pr_data" ] && [ "$pr_data" != "null" ]; then
+          if [ -n "$pr_data" ] && [ "$pr_data" != "null" ] && [ "$pr_data" != "" ]; then
             # Extract labels from the PR
-            pr_labels=$(echo "$pr_data" | jq -r '.labels[].name' 2>/dev/null | tr '\n' ' ')
+            pr_labels=$(echo "$pr_data" | jq -r '.labels[].name' 2>/dev/null | tr '\n' ' ' || echo "")
             echo "PR labels from API: '$pr_labels'"
             
             # Check for release labels
@@ -191,6 +191,8 @@ jobs:
             elif echo "$pr_labels" | grep -q "release: patch"; then
               version_type="patch"
             fi
+          else
+            echo "No PR data found for commit $commit_sha"
           fi
         fi
         
